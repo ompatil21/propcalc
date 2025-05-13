@@ -15,5 +15,5 @@ def property_serializer(property_doc):
         "rent": property_doc.get("rent"),
         "vacancy_rate": property_doc.get("vacancy_rate"),
         "expenses": property_doc.get("expenses"),
-        "created_at": property_doc.get("created_at"),
+        "created_at": property_doc.get("createdAt"),
     }

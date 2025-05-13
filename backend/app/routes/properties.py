@@ -43,7 +43,7 @@ def create_property():
             "maintenance": float(data.get("maintenance", 0)),
             "property_manager": float(data.get("property_manager", 0)),
             "wage_growth": float(data.get("wage_growth", 0)),
-            "created_at": datetime.utcnow(),
+            "createdAt": datetime.utcnow(),
         }
 
         # ✅ Robust parsing of owners
