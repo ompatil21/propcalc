@@ -1,10 +1,9 @@
 {
-  "/favicon.ico/route": "app/favicon.ico/route.js",
   "/_not-found/page": "app/_not-found/page.js",
-  "/login/page": "app/login/page.js",
   "/page": "app/page.js",
+  "/login/page": "app/login/page.js",
   "/admin/users/page": "app/admin/users/page.js",
-  "/admin/analytics/page": "app/admin/analytics/page.js",
+  "/admin/properties/page": "app/admin/properties/page.js",
   "/admin/page": "app/admin/page.js",
-  "/admin/properties/page": "app/admin/properties/page.js"
+  "/admin/analytics/page": "app/admin/analytics/page.js"
 }
