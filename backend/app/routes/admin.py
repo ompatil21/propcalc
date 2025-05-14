@@ -115,18 +115,37 @@ def analytics_monthly_additions():
         return jsonify({"error": "Monthly additions failed", "details": str(e)}), 500
 
 
+# @bp.route("/users", methods=["GET"])
+# @jwt_required()
+# def get_all_users_route():
+#     if not is_admin():
+#         return jsonify({"error": "Admin access only"}), 403
+
+#     try:
+#         data = get_all_users()
+#         return jsonify(data), 200
+#     except Exception as e:
+#         logger.error(f"Error fetching users: {e}")
+#         return jsonify({"error": "User fetch failed", "details": str(e)}), 500
+
+
+def serialize_user(user):
+    return {
+        "_id": str(user["_id"]),  # ✅ Convert ObjectId to plain string
+        "email": user.get("email"),
+        "role": user.get("role"),
+        "active": user.get("active", True),
+    }
+
+
 @bp.route("/users", methods=["GET"])
 @jwt_required()
-def get_all_users_route():
-    if not is_admin():
-        return jsonify({"error": "Admin access only"}), 403
-
+def get_all_users():
     try:
-        data = get_all_users()
-        return jsonify(data), 200
+        users = list(db.users.find())
+        return jsonify([serialize_user(u) for u in users]), 200
     except Exception as e:
-        logger.error(f"Error fetching users: {e}")
-        return jsonify({"error": "User fetch failed", "details": str(e)}), 500
+        return jsonify({"error": "Failed to load users", "details": str(e)}), 500
 
 
 @bp.route("/users", methods=["POST"])
@@ -164,36 +183,70 @@ def update_user_route(user_id):
         return jsonify({"error": "User update failed", "details": str(e)}), 500
 
 
+# @bp.route("/users/<user_id>", methods=["DELETE"])
+# @jwt_required()
+# def delete_user_route(user_id):
+#     if not is_admin():
+#         return jsonify({"error": "Admin access only"}), 403
+
+#     try:
+#         success = delete_user(user_id)
+#         if success:
+#             return jsonify({"message": "User deleted"}), 200
+#         else:
+#             return jsonify({"error": "User not found"}), 404
+#     except Exception as e:
+#         logger.error(f"Error deleting user: {e}")
+#         return jsonify({"error": "User deletion failed", "details": str(e)}), 500
+
+
+from flask import request, jsonify
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from bson import ObjectId
+from app.db import db
+import logging
+
+logger = logging.getLogger(__name__)
+
+
 @bp.route("/users/<user_id>", methods=["DELETE"])
 @jwt_required()
-def delete_user_route(user_id):
-    if not is_admin():
-        return jsonify({"error": "Admin access only"}), 403
+def delete_user(user_id):
+    logger.info(f"🧹 DELETE /users/{user_id} requested")
 
     try:
-        success = delete_user(user_id)
-        if success:
+        result = db.users.delete_one({"_id": ObjectId(user_id)})
+        if result.deleted_count:
+            logger.info(f"✅ Deleted user {user_id}")
             return jsonify({"message": "User deleted"}), 200
         else:
+            logger.warning(f"⚠️ No user found with id {user_id}")
             return jsonify({"error": "User not found"}), 404
     except Exception as e:
-        logger.error(f"Error deleting user: {e}")
-        return jsonify({"error": "User deletion failed", "details": str(e)}), 500
+        logger.error(f"❌ Failed to delete user {user_id}: {e}")
+        return jsonify({"error": "Invalid ID", "details": str(e)}), 400
 
 
-@bp.route("/users/<user_id>", methods=["PATCH"])
+@bp.route("/users/<user_id>/status", methods=["PATCH"])
 @jwt_required()
-def toggle_user_status(user_id):
+def update_user_status(user_id):
+    logger.info(f"🔁 PATCH /users/{user_id}/status requested")
+
     data = request.get_json()
     active = data.get("active")
 
     if active is None:
-        return jsonify({"error": "Missing 'active' status"}), 400
+        return jsonify({"error": "Missing 'active' field"}), 400
 
-    result = db.users.update_one(
-        {"_id": ObjectId(user_id)}, {"$set": {"active": active}}
-    )
-    if result.modified_count == 1:
-        return jsonify({"message": "User updated"}), 200
-    else:
-        return jsonify({"error": "User not found or no change"}), 404
+    try:
+        result = db.users.update_one(
+            {"_id": ObjectId(user_id)}, {"$set": {"active": active}}
+        )
+        if result.modified_count:
+            logger.info(f"✅ Updated user {user_id} active status to {active}")
+            return jsonify({"message": "Status updated"}), 200
+        else:
+            return jsonify({"error": "User not found or no change made"}), 404
+    except Exception as e:
+        logger.error(f"❌ Failed to update status for {user_id}: {e}")
+        return jsonify({"error": "Invalid ID", "details": str(e)}), 400
