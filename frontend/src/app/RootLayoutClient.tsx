@@ -10,12 +10,12 @@ const inter = Inter({ subsets: ["latin"] });
 
 export default function RootLayoutClient({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isAdminPage = pathname?.startsWith("/admin");
+  const hideNavbar = pathname === "/" || pathname?.startsWith("/admin");
 
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <div className={`${inter.className} min-h-screen bg-gray-100 dark:bg-gray-950`}>
-        {!isAdminPage && <Navbar />}
+        {!hideNavbar && <Navbar />}
         <main>{children}</main>
         <Toaster />
       </div>
