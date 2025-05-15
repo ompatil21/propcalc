@@ -250,3 +250,45 @@ def update_user_status(user_id):
     except Exception as e:
         logger.error(f"❌ Failed to update status for {user_id}: {e}")
         return jsonify({"error": "Invalid ID", "details": str(e)}), 400
+
+
+@bp.route("/properties/<property_id>", methods=["DELETE"])
+@jwt_required()
+def delete_property(property_id):
+    from bson import ObjectId
+    from app.db import db
+    import logging
+
+    logger = logging.getLogger(__name__)
+    logger.info(f"🗑 DELETE property {property_id}")
+
+    try:
+        result = db.properties.delete_one({"_id": ObjectId(property_id)})
+        if result.deleted_count == 1:
+            return jsonify({"message": "Property deleted"}), 200
+        else:
+            return jsonify({"error": "Property not found"}), 404
+    except Exception as e:
+        logger.error(f"❌ Failed to delete property {property_id}: {e}")
+        return jsonify({"error": "Invalid ID", "details": str(e)}), 400
+
+
+@bp.route("/properties/<property_id>", methods=["GET"])
+@jwt_required()
+def get_property_detail(property_id):
+    from bson import ObjectId
+    from app.db import db
+    from app.models.property import property_serializer
+    import logging
+
+    logger = logging.getLogger(__name__)
+    logger.info(f"🔍 GET property details for {property_id}")
+
+    try:
+        property_doc = db.properties.find_one({"_id": ObjectId(property_id)})
+        if not property_doc:
+            return jsonify({"error": "Property not found"}), 404
+        return jsonify(property_serializer(property_doc)), 200
+    except Exception as e:
+        logger.error(f"❌ Failed to fetch property {property_id}: {e}")
+        return jsonify({"error": "Invalid ID", "details": str(e)}), 400
