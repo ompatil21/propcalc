@@ -1,121 +1,159 @@
 from flask import Blueprint, request, jsonify
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.db import db
 from app.models.property import property_serializer
-from bson.objectid import ObjectId
 from datetime import datetime
+from bson.objectid import ObjectId
+from cerberus import Validator
 
 bp = Blueprint("properties", __name__, url_prefix="/api/properties")
 
+schema = {
+    "title": {"type": "string", "required": True},
+    "location": {"type": "string", "required": True},
+    "type": {"type": "string", "required": True},
+    "state": {"type": "string", "required": True},
+    "askingPrice": {"type": "string", "required": True},
+    "purchase_price": {"type": "number", "required": True},
+    "deposit": {"type": "number", "required": True},
+    "loan_amount": {"type": "number", "required": False},
+    "interest_rate": {"type": "number", "required": False},
+    "loan_term": {"type": "integer", "required": False},
+    "lvr": {"type": "number", "required": False},
+    "lmiRequired": {"type": "boolean", "required": False},
+    "rent": {"type": "number", "required": False},
+    "rentPerWeek": {"type": "number", "required": False},
+    "weeksRented": {"type": "integer", "required": False},
+    "vacancy_rate": {"type": "number", "required": False},
+    "council_rates": {"type": "number", "required": False},
+    "insurance": {"type": "number", "required": False},
+    "maintenance": {"type": "number", "required": False},
+    "property_manager": {"type": "number", "required": False},
+    "wage_growth": {"type": "number", "required": False},
+    "stamp_duty": {"type": "number", "required": False},
+    "gst": {"type": "number", "required": False},
+    "legal_fees": {"type": "number", "required": False},
+    "disbursements": {"type": "number", "required": False},
+    "building_inspection": {"type": "number", "required": False},
+    "registration_title": {"type": "number", "required": False},
+    "mortgage_stamp_duty": {"type": "number", "required": False},
+    "mortgage_insurance_1": {"type": "number", "required": False},
+    "stamp_duty_mi_1": {"type": "number", "required": False},
+    "mortgage_insurance_2": {"type": "number", "required": False},
+    "stamp_duty_mi_2": {"type": "number", "required": False},
+    "loan_app_fee": {"type": "number", "required": False},
+    "valuation_fee": {"type": "number", "required": False},
+    "search_fees": {"type": "number", "required": False},
+    "registration_mortgage": {"type": "number", "required": False},
+    "date_of_purchase": {"type": "string", "required": True},
+    "date_of_construction": {"type": "string", "required": True},
+    "date_of_sale": {"type": "string", "required": False, "nullable": True},
+    "rental_growth": {"type": "number", "required": False},
+    "capital_growth_rate": {"type": "number", "required": False},
+    "buildings_value": {"type": "number", "required": False},
+    "fittings_value": {"type": "number", "required": False},
+    "inflation": {"type": "number", "required": False},
+    "preferred_lvr": {"type": "number", "required": False},
+    "medicare_surcharge": {"type": "boolean", "required": False},
+    "owners": {
+        "type": "list",
+        "required": True,
+        "schema": {
+            "type": "dict",
+            "schema": {
+                "name": {"type": "string", "required": True},
+                "ownership": {"type": "number", "required": True},
+                "income": {"type": "number", "required": True},
+            },
+        },
+    },
+}
 
-@bp.route("", methods=["GET"])
-def get_properties():
-    properties = db.properties.find()
-    return jsonify([property_serializer(p) for p in properties])
 
-
-@bp.route("/<id>", methods=["GET"])
-def get_property(id):
-    property_doc = db.properties.find_one({"_id": ObjectId(id)})
-    if property_doc:
-        return jsonify(property_serializer(property_doc))
-    return jsonify({"error": "Property not found"}), 404
-
-
-@bp.route("", methods=["POST"])
+@bp.route("", methods=["POST", "OPTIONS"])
+@jwt_required()
 def create_property():
+    if request.method == "OPTIONS":
+        return "", 204
+
+    user_id = get_jwt_identity()
+
     try:
         data = request.get_json()
-        print("🔥 Full request JSON:", data)
+        v = Validator(schema)
+
+        if not v.validate(data):
+            return jsonify({"error": "Validation failed", "details": v.errors}), 400
+
+        total_ownership = sum(owner.get("ownership", 0) for owner in data["owners"])
+        if total_ownership != 100:
+            return (
+                jsonify(
+                    {"error": f"Ownership must total 100%. Found {total_ownership}%"}
+                ),
+                400,
+            )
 
         parsed = {
-            "title": data.get("title"),
-            "location": data.get("location"),
-            "type": data.get("type"),
-            "purchase_price": float(data.get("purchase_price", 0)),
-            "deposit": float(data.get("deposit", 0)),
+            "title": data["title"],
+            "location": data["location"],
+            "type": data["type"],
+            "state": data["state"],
+            "askingPrice": data["askingPrice"],
+            "purchase_price": float(data["purchase_price"]),
+            "deposit": float(data["deposit"]),
             "loan_amount": float(data.get("loan_amount", 0)),
             "interest_rate": float(data.get("interest_rate", 0)),
             "loan_term": int(data.get("loan_term", 0)),
+            "lvr": float(data.get("lvr", 0)),
+            "lmiRequired": data.get("lmiRequired", False),
             "rent": float(data.get("rent", 0)),
+            "rentPerWeek": float(data.get("rentPerWeek", 0)),
+            "weeksRented": int(data.get("weeksRented", 0)),
             "vacancy_rate": float(data.get("vacancy_rate", 0)),
             "council_rates": float(data.get("council_rates", 0)),
             "insurance": float(data.get("insurance", 0)),
             "maintenance": float(data.get("maintenance", 0)),
             "property_manager": float(data.get("property_manager", 0)),
             "wage_growth": float(data.get("wage_growth", 0)),
+            "stamp_duty": float(data.get("stamp_duty", 0)),
+            "gst": float(data.get("gst", 0)),
+            "legal_fees": float(data.get("legal_fees", 0)),
+            "disbursements": float(data.get("disbursements", 0)),
+            "building_inspection": float(data.get("building_inspection", 0)),
+            "registration_title": float(data.get("registration_title", 0)),
+            "mortgage_stamp_duty": float(data.get("mortgage_stamp_duty", 0)),
+            "mortgage_insurance_1": float(data.get("mortgage_insurance_1", 0)),
+            "stamp_duty_mi_1": float(data.get("stamp_duty_mi_1", 0)),
+            "mortgage_insurance_2": float(data.get("mortgage_insurance_2", 0)),
+            "stamp_duty_mi_2": float(data.get("stamp_duty_mi_2", 0)),
+            "loan_app_fee": float(data.get("loan_app_fee", 0)),
+            "valuation_fee": float(data.get("valuation_fee", 0)),
+            "search_fees": float(data.get("search_fees", 0)),
+            "registration_mortgage": float(data.get("registration_mortgage", 0)),
+            "date_of_purchase": data["date_of_purchase"],
+            "date_of_construction": data["date_of_construction"],
+            "date_of_sale": data.get("date_of_sale"),
+            "rental_growth": float(data.get("rental_growth", 0)),
+            "capital_growth_rate": float(data.get("capital_growth_rate", 0)),
+            "buildings_value": float(data.get("buildings_value", 0)),
+            "fittings_value": float(data.get("fittings_value", 0)),
+            "inflation": float(data.get("inflation", 0)),
+            "preferred_lvr": float(data.get("preferred_lvr", 0)),
+            "owners": data["owners"],
+            "user_id": user_id,
             "createdAt": datetime.utcnow(),
+            "medicare_surcharge": bool(data.get("medicare_surcharge", False)),
         }
 
-        # ✅ Robust parsing of owners
-        owners_raw = data.get("owners", [])
-        parsed_owners = []
-
-        print("📦 Raw owners in request:", owners_raw)
-
-        for owner in owners_raw:
-            try:
-                name = str(owner.get("name", "")).strip()
-                ownership = owner.get("ownership")
-                income = owner.get("income")
-
-                if (
-                    name
-                    and isinstance(ownership, (int, float))
-                    and float(ownership) > 0
-                    and isinstance(income, (int, float))
-                    and float(income) > 0
-                ):
-                    parsed_owners.append(
-                        {
-                            "name": name,
-                            "ownership": float(ownership),
-                            "income": float(income),
-                        }
-                    )
-                else:
-                    print(f"⚠️ Skipped invalid owner: {owner}")
-
-            except Exception as e:
-                print(f"❌ Failed to parse owner: {owner} — {e}")
-                continue
-
-        # 🛑 Stop if no valid owners
-        if not parsed_owners:
-            return jsonify({"error": "At least one valid owner is required."}), 400
-
-        parsed["owners"] = parsed_owners
-
-        # ✅ Insert into DB
         result = db.properties.insert_one(parsed)
 
         if not result.inserted_id:
             return jsonify({"error": "Insert failed"}), 500
 
         new_doc = db.properties.find_one({"_id": result.inserted_id})
-
-        if not new_doc:
-            return jsonify({"error": "Unable to retrieve inserted document"}), 500
-
-        print("✅ Inserted:", new_doc)
         return jsonify(property_serializer(new_doc)), 201
 
     except Exception as e:
         print("❌ Error inserting property:", e)
         return jsonify({"error": str(e)}), 500
-
-
-@bp.route("/<id>", methods=["PUT"])
-def update_property(id):
-    data = request.json
-    result = db.properties.update_one({"_id": ObjectId(id)}, {"$set": data})
-    if result.modified_count == 1:
-        return jsonify({"message": "Property updated"})
-    return jsonify({"error": "Property not found or not modified"}), 404
-
-
-@bp.route("/<id>", methods=["DELETE"])
-def delete_property(id):
-    result = db.properties.delete_one({"_id": ObjectId(id)})
-    if result.deleted_count == 1:
-        return jsonify({"message": "Property deleted"})
-    return jsonify({"error": "Property not found"}), 404
