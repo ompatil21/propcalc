@@ -1,7 +1,8 @@
-"use client";
+'use client';
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Loader from "@/components/Loader";
 
 export default function LoginPage() {
@@ -13,10 +14,11 @@ export default function LoginPage() {
 
     const handleLogin = async (e: any) => {
         e.preventDefault();
+        setLoading(true);
+        setError("");
 
         try {
             const res = await fetch("http://localhost:5000/api/auth/login", {
-
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email, password }),
@@ -26,6 +28,7 @@ export default function LoginPage() {
 
             if (!res.ok) {
                 setError(data.error || "Invalid login");
+                setLoading(false);
                 return;
             }
 
@@ -39,6 +42,8 @@ export default function LoginPage() {
             }
         } catch (err) {
             setError("Login failed. Please try again.");
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -82,8 +87,15 @@ export default function LoginPage() {
                     >
                         {loading ? <Loader /> : "LOGIN"}
                     </button>
-
                 </form>
+
+                {/* Admin Register Link */}
+                <div className="mt-4 text-center text-sm text-gray-600">
+                    Don’t have an admin account?{" "}
+                    <Link href="/admin/register" className="text-indigo-600 hover:underline font-medium">
+                        Register here
+                    </Link>
+                </div>
             </div>
         </div>
     );
