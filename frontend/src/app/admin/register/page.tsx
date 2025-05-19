@@ -2,10 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Loader from "@/components/Loader";
-
-
-
 
 export default function RegisterPage() {
     const router = useRouter();
@@ -17,21 +15,9 @@ export default function RegisterPage() {
     const [mounted, setMounted] = useState(false);
     const [loading, setLoading] = useState(false);
 
-    // Wait until client renders
     useEffect(() => {
         setMounted(true);
     }, []);
-
-    // // Redirect if token exists (client-side only)
-    // useEffect(() => {
-    //     if (mounted) {
-    //         const token = localStorage.getItem("token");
-    //         if (token) {
-    //             console.log("Redirecting: already logged in");
-    //             router.replace("/"); // Or /admin if you prefer
-    //         }
-    //     }
-    // }, [mounted]);
 
     const handleRegister = async (e: any) => {
         e.preventDefault();
@@ -56,25 +42,23 @@ export default function RegisterPage() {
             if (!res.ok) {
                 setError(data.error || "Registration failed");
             } else {
-                setSuccess("Registered successfully. Redirecting to login...");
-                setTimeout(() => router.push("/login"), 2000);
+                setSuccess("✅ Registered successfully! Redirecting to login...");
+                setTimeout(() => router.push("/admin/login"), 2000);
             }
         } catch (err) {
-            setError("Request failed");
+            setError("Registration failed. Please try again.");
         } finally {
             setLoading(false);
         }
     };
 
-
-    // Prevent rendering until mounted
     if (!mounted) return null;
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-600 to-blue-700 px-4">
             <div className="bg-white shadow-2xl rounded-xl w-full max-w-md p-8 sm:p-10">
-                <h2 className="text-3xl font-bold text-center text-gray-800">Admin Registration</h2>
-                <p className="text-center text-gray-500 mb-6 text-sm">Register a new PropCalc admin</p>
+                <h2 className="text-3xl font-bold text-center text-gray-800 mb-1">Admin Registration</h2>
+                <p className="text-center text-gray-500 mb-6 text-sm">Create a new admin account for PropCalc</p>
 
                 {error && <div className="text-red-500 text-sm mb-4">{error}</div>}
                 {success && <div className="text-green-600 text-sm mb-4">{success}</div>}
@@ -102,7 +86,7 @@ export default function RegisterPage() {
                             onChange={(e) => setPassword(e.target.value)}
                             required
                         />
-                        <label className="flex items-center mt-1 text-sm text-gray-600">
+                        <label className="flex items-center mt-2 text-sm text-gray-600">
                             <input
                                 type="checkbox"
                                 className="mr-2"
@@ -120,8 +104,17 @@ export default function RegisterPage() {
                     >
                         {loading ? <Loader /> : "Register"}
                     </button>
-
                 </form>
+
+                <div className="mt-5 text-center text-sm text-gray-600">
+                    Already have an account?{" "}
+                    <Link
+                        href="/admin/login"
+                        className="text-indigo-600 hover:underline font-medium"
+                    >
+                        Go to login
+                    </Link>
+                </div>
             </div>
         </div>
     );
