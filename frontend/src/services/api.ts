@@ -70,4 +70,205 @@ export async function createProperty(data: any) {
   return await res.json()
 }
 
+// Property CRUD
+
+
+// Fetch all properties
+export async function getProperties() {
+  const res = await fetch('http://localhost:5000/api/properties', {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) throw new Error('Failed to fetch properties');
+  return res.json();
+}
+
+// Fetch property by ID
+export async function getPropertyById(id: string) {
+  const res = await fetch(`http://localhost:5000/api/properties/${id}`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) throw new Error('Failed to fetch property');
+  return res.json();
+}
+
+// Update property by ID
+export async function updateProperty(id: string, propertyData: any) {
+  const res = await fetch(`http://localhost:5000/api/properties/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(propertyData),
+  });
+  if (!res.ok) throw new Error('Failed to update property');
+  return res.json();
+}
+
+// Delete property by ID
+export async function deleteProperty(id: string) {
+  const res = await fetch(`http://localhost:5000/api/properties/${id}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) throw new Error('Failed to delete property');
+  return res.json();
+}
+
+
+// Simulation APIs
+const SIMULATION_BASE_URL = "http://localhost:5000/api/simulation";
+
+export async function runSimulation(scenarios: any[]) {
+  const res = await fetch(SIMULATION_BASE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ scenarios }),
+  });
+  if (!res.ok) throw new Error("Failed to run simulation");
+  return await res.json();
+}
+
+
+export async function simulateProperty(data: any) {
+  const res = await fetch('http://localhost:5000/api/simulation', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to fetch simulation results');
+  return res.json();
+}
+
+export async function getSimulationGrowth(data: any) {
+  const res = await fetch('http://localhost:5000/api/simulation/growth', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to fetch simulation growth');
+  return res.json();
+}
+
+export async function getSimulationCashFlow(data: any) {
+  const res = await fetch('http://localhost:5000/api/simulation/cashflow', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to fetch simulation cash flow');
+  return res.json();
+}
+
+export async function getSimulationCumulativeCashFlow(data: any) {
+  const res = await fetch('http://localhost:5000/api/simulation/cumulative-cashflow', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to fetch cumulative cash flow');
+  return res.json();
+}
+
+// src/services/api.ts
+const BASE = "http://localhost:5000/api/tax-calc";
+
+
+export async function calculateTax(data: any) {
+  const res = await fetch(BASE, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+  const text = await res.text();  // raw error string
+  console.log("🔍 Raw API response:", text);  // logs {"error": "..."}
+  
+  if (!res.ok) throw new Error("Failed to calculate tax");
+  return JSON.parse(text);
+}
+
+
+
+export async function getTaxDeductions(data: any) {
+  const res = await fetch(`${BASE}/deductions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to get deductions");
+  return await res.json();
+}
+
+export async function getTaxHoldingCosts(data: any) {
+  const res = await fetch(`${BASE}/holding-costs`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to get holding costs");
+  return await res.json();
+}
+
+export async function getTaxHoldingCostsYears(data: any) {
+  const res = await fetch(`${BASE}/holding-costs-years`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to get holding costs by year");
+  return await res.json();
+}
+
+export async function getTaxYearlyData(data: any) {
+  const res = await fetch(`${BASE}/yearly-data`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to get yearly data");
+  return await res.json();
+}
+
+
+
+// Portfolio APIs
+export async function getPortfolioOverview(data: any) {
+  const res = await fetch('http://localhost:5000/api/portfolio', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to fetch portfolio overview');
+  return res.json();
+}
+
+export async function getPortfolioGrowth(data: any) {
+  const res = await fetch('http://localhost:5000/api/portfolio/growth', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to fetch portfolio growth');
+  return res.json();
+}
+
+export async function getPortfolioCashFlow(data: any) {
+  const res = await fetch('http://localhost:5000/api/portfolio/cashflow', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to fetch portfolio cash flow');
+  return res.json();
+}
+
+export async function getPortfolioSummary(data: any) {
+  const res = await fetch('http://localhost:5000/api/portfolio/summary', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to fetch portfolio summary');
+  return res.json();
+}
 

@@ -34,8 +34,12 @@ def create_app():
     # Register routes
     from app.routes.admin import bp as admin_bp
     from app.routes.auth import auth_bp
+    from app.routes.simulation_routes import simulation_bp
+    from app.routes.taxcalc_routes import taxcalc_bp
 
     app.register_blueprint(admin_bp)
     app.register_blueprint(auth_bp)
+    app.register_blueprint(simulation_bp, url_prefix='/api/simulation')
+    app.register_blueprint(taxcalc_bp, url_prefix='/api/tax-calc')
 
     return app

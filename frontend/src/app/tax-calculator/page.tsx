@@ -1,826 +1,574 @@
 'use client';
 
-import * as React from "react";
-import { Calculator, ArrowRight, DownloadCloud } from "lucide-react";
-import { 
-  Chart as ChartJS, 
-  CategoryScale, 
-  LinearScale, 
-  BarElement, 
-  LineElement,
-  PointElement,
-  ArcElement,
-  Title, 
-  Tooltip, 
-  Legend,
-  ChartData,
-  ChartOptions
-} from 'chart.js';
-import { Bar, Line, Pie, Doughnut } from 'react-chartjs-2';
+import { useState, useEffect } from "react";
+import { calculateTax } from "@/services/api";
+import { LoadingOverlay } from "@/components/ui/spinner";
+import { Bar, Line, Pie } from "react-chartjs-2";
+import {
+  BarElement, CategoryScale, Chart as ChartJS, ChartData, ChartOptions, Legend,
+  LinearScale, LineElement, PointElement, Title, Tooltip, ArcElement
+} from "chart.js";
 
-// Register ChartJS components
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  LineElement,
-  PointElement,
-  ArcElement,
-  Title,
-  Tooltip,
-  Legend
-);
+ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend);
 
-export default function TaxCalculatorPage() {
-  const [formData, setFormData] = React.useState({
-    taxYear: '',
-    filingStatus: '',
-    annualIncome: '',
-    propertyValue: '',
-    propertyType: '',
-    rentalIncome: '',
-    mortgageInterest: '',
-    propertyExpenses: '',
-    purchaseYear: ''
+type Owner = {
+  name: string;
+  ownership: string;
+  income: string;
+};
+
+export default function TaxCalculatorPage({ prefillData }: { prefillData?: any }) {
+  const [formData, setFormData] = useState(() => ({
+    dateOfPurchase: prefillData?.dateOfPurchase || "",
+    dateOfSale: prefillData?.dateOfSale || "",
+    state: prefillData?.state || "VIC",
+    holdingYears: prefillData?.holdingYears?.toString() || "10",
+    rentPerWeek: prefillData?.rentPerWeek?.toString() || "",
+    weeksRented: prefillData?.weeksRented?.toString() || "50",
+    interestLoan1: prefillData?.interestLoan1?.toString() || "",
+    interestLoan2: prefillData?.interestLoan2?.toString() || "",
+    interestRate: prefillData?.interestRate?.toString() || "0.037",
+    propertyManager: prefillData?.propertyManager?.toString() || "7",
+    lettingFeeWeeks: prefillData?.lettingFeeWeeks?.toString() || "1",
+    insurance: prefillData?.insurance?.toString() || "",
+    maintenance: prefillData?.maintenance?.toString() || "",
+    strata: prefillData?.strata?.toString() || "",
+    waterCharges: prefillData?.waterCharges?.toString() || "",
+    cleaning: prefillData?.cleaning?.toString() || "",
+    councilRates: prefillData?.councilRates?.toString() || "",
+    gardening: prefillData?.gardening?.toString() || "",
+    landTax: prefillData?.landTax?.toString() || "",
+    legalExpenses: prefillData?.legalExpenses?.toString() || "",
+    pestControl: prefillData?.pestControl?.toString() || "",
+    bookkeeping: prefillData?.bookkeeping?.toString() || "",
+    postage: prefillData?.postage?.toString() || "",
+    taxRelatedExpenses: prefillData?.taxRelatedExpenses?.toString() || "",
+    travel: prefillData?.travel?.toString() || "",
+    onceOffExpenses: prefillData?.onceOffExpenses?.toString() || "",
+    borrowingCosts: prefillData?.borrowingCosts?.toString() || "",
+    depreciationBuildings: prefillData?.depreciationBuildings?.toString() || "",
+    depreciationFittings: prefillData?.depreciationFittings?.toString() || "",
+    wageGrowth: prefillData?.wageGrowth?.toString() || "0.02",
+    rentalGrowth: prefillData?.rentalGrowth?.toString() || "0.035",
+    inflation: prefillData?.inflation?.toString() || "0.025",
+    capitalGrowth: prefillData?.capitalGrowth?.toString() || "0.08",
+    hasPrivateHealthCover: prefillData?.hasPrivateHealthCover || false,
+    purchase_price: prefillData?.purchase_price?.toString() || "",
+    sale_price: prefillData?.sale_price?.toString() || "",
+    owners: prefillData?.owners?.map((o: any) => ({
+      name: o.name || "",
+      ownership: o.ownership?.toString() || "",
+      income: o.income?.toString() || "",
+    })) || [{ name: "Owner 1", ownership: "50", income: "" }, { name: "Owner 2", ownership: "50", income: "" }],
+  }));
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [taxResults, setTaxResults] = useState<any>(null);
+
+  // Clear taxResults if number of owners changes
+  useEffect(() => {
+    setTaxResults(null);
+  }, [formData.owners.length]);
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value, type } = e.target;
+    if (type === "checkbox") {
+      const checked = (e.target as HTMLInputElement).checked;
+      setFormData((prev) => ({ ...prev, [name]: checked }));
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
+  };
+
+  const handleOwnerChange = (
+    idx: number,
+    field: string,
+    value: string
+  ) => {
+    setFormData((prev) => {
+      const newOwners = [...prev.owners];
+      newOwners[idx] = { ...newOwners[idx], [field]: value };
+      return { ...prev, owners: newOwners };
+    });
+  };
+
+  const addOwner = () => {
+    setFormData((prev) => ({
+      ...prev,
+      owners: [
+        ...prev.owners,
+        { name: `Owner ${prev.owners.length + 1}`, ownership: "", income: "" },
+      ],
+    }));
+  };
+
+  const removeOwner = (idx: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      owners:
+        prev.owners.length === 1
+          ? prev.owners
+          : prev.owners.filter((_: any, i: number) => i !== idx),
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      const payload: { [key: string]: any } = { ...formData, 
+        wageGrowth: String(Number(formData.wageGrowth)),
+        rentalGrowth: String(Number(formData.rentalGrowth)),
+        inflation: String(Number(formData.inflation)),
+        capitalGrowth: String(Number(formData.capitalGrowth)),
+        owners: formData.owners.map((o: Owner) => ({
+          name: o.name,
+          ownership: Number(o.ownership),
+          income: Number(o.income)
+        }))
+      };
+      Object.keys(payload).forEach(key => {
+        if (typeof payload[key] === "string" && payload[key].trim() === "" && key !== "dateOfPurchase" && key !== "dateOfSale" && key !== "state") {
+          payload[key] = 0;
+        }
+      });
+      const result = await calculateTax(payload);
+      setTaxResults(result);
+    } catch (error) {
+      console.error("Tax calculation error:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // --- Chart Data ---
+  const validOwnerCount =
+    taxResults &&
+    Array.isArray(taxResults.yearly) &&
+    taxResults.yearly.length > 0 &&
+    formData.owners &&
+    formData.owners.length > 0 &&
+    taxResults.yearly.every(
+      (y: any) =>
+        Array.isArray(y.owners) && y.owners.length === formData.owners.length
+    );
+
+  const chartData =
+    validOwnerCount
+      ? {
+          labels: taxResults.yearly.map((y: any) => `Year ${y.year}`),
+          datasets: Array.isArray(taxResults.yearly[0]?.owners)
+            ? taxResults.yearly[0].owners.map((owner: any, idx: number) => ({
+                label: owner.name || `Owner ${idx + 1}`,
+                data: taxResults.yearly.map(
+                  (y: any) =>
+                    (y.owners &&
+                      y.owners[idx] &&
+                      typeof y.owners[idx].after_tax_cash_flow === "number"
+                      ? y.owners[idx].after_tax_cash_flow
+                      : 0)
+                ),
+                backgroundColor: ["#2563eb", "#10b981", "#a21caf", "#f59e42"][idx % 4],
+                borderColor: ["#2563eb", "#10b981", "#a21caf", "#f59e42"][idx % 4],
+                type: "bar" as const,
+              }))
+            : [],
+        }
+      : undefined;
+
+  // Defensive helpers for all chart data
+  const safeBarData = (labels: any[] = [], data: any[] = [], label = "", color = "#2563eb") => ({
+    labels: Array.isArray(labels) ? labels : [],
+    datasets: [
+      {
+        label,
+        data: Array.isArray(data) ? data : [],
+        backgroundColor: color,
+      },
+    ],
   });
 
-  const [showResults, setShowResults] = React.useState(false);
-  const [isDarkMode, setIsDarkMode] = React.useState(false);
-
-  // Check for dark mode
-  React.useEffect(() => {
-    const checkDarkMode = () => {
-      const isDark = document.documentElement.classList.contains('dark');
-      setIsDarkMode(isDark);
-    };
-    
-    checkDarkMode();
-    
-    // Optional: Add listener for theme changes if you have a theme toggle
-    const observer = new MutationObserver(checkDarkMode);
-    observer.observe(document.documentElement, { 
-      attributes: true, 
-      attributeFilter: ['class'] 
-    });
-    
-    return () => {
-      observer.disconnect();
-    };
-  }, []);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value
-    });
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // In a real app, we would calculate the results here
-    setShowResults(true);
-  };
-
-  // Chart Data - Only created when showResults is true
-  const generateChartData = () => {
-    // We would use actual calculated data here based on the form inputs
-    
-    // Base colors that work in both themes
-    const chartColors = {
-      blue: isDarkMode ? 'rgba(59, 130, 246, 0.8)' : 'rgba(37, 99, 235, 0.8)',
-      green: isDarkMode ? 'rgba(52, 211, 153, 0.8)' : 'rgba(16, 185, 129, 0.8)',
-      purple: isDarkMode ? 'rgba(139, 92, 246, 0.8)' : 'rgba(124, 58, 237, 0.8)',
-      red: isDarkMode ? 'rgba(248, 113, 113, 0.8)' : 'rgba(220, 38, 38, 0.8)',
-      yellow: isDarkMode ? 'rgba(251, 191, 36, 0.8)' : 'rgba(245, 158, 11, 0.8)',
-      teal: isDarkMode ? 'rgba(45, 212, 191, 0.8)' : 'rgba(20, 184, 166, 0.8)',
-      indigo: isDarkMode ? 'rgba(99, 102, 241, 0.8)' : 'rgba(79, 70, 229, 0.8)',
-    };
-
-    // Holding costs chart data for multiple years
-    const holdingCostsData: ChartData<'pie'> = {
-      labels: ['You', 'Tax Office', 'Tenant'],
-      datasets: [
-        {
-          label: 'Year 1',
-          data: [90, 1, 9], // Percentages 
-          backgroundColor: [
-            chartColors.green,
-            chartColors.red,
-            chartColors.blue,
-          ],
-          borderWidth: 1,
-        }
-      ]
-    };
-
-    // Holding costs progression over years
-    const holdingCostsYears: ChartData<'pie'>[] = [
-      // Year 1
+  const safePieData = (labels: any[] = [], data: any[] = [], colors: string[] = []) => ({
+    labels: Array.isArray(labels) ? labels : [],
+    datasets: [
       {
-        labels: ['You', 'Tax Office', 'Tenant'],
-        datasets: [{
-          data: [90, 1, 9],
-          backgroundColor: [chartColors.green, chartColors.red, chartColors.blue],
-          borderWidth: 1,
-        }]
+        data: Array.isArray(data) ? data : [],
+        backgroundColor: colors.length ? colors : ["#2563eb", "#10b981", "#f59e42"],
       },
-      // Year 5
+    ],
+  });
+
+  const safeLineData = (labels: any[] = [], data: any[] = [], label = "", color = "#10b981", bg = "rgba(16,185,129,0.2)") => ({
+    labels: Array.isArray(labels) ? labels : [],
+    datasets: [
       {
-        labels: ['You', 'Tax Office', 'Tenant'],
-        datasets: [{
-          data: [73, 0, 27],
-          backgroundColor: [chartColors.green, chartColors.red, chartColors.blue],
-          borderWidth: 1,
-        }]
+        label,
+        data: Array.isArray(data) ? data : [],
+        borderColor: color,
+        backgroundColor: bg,
+        fill: true,
       },
-      // Year 10
-      {
-        labels: ['You', 'Tax Office', 'Tenant'],
-        datasets: [{
-          data: [72, 0, 28],
-          backgroundColor: [chartColors.green, chartColors.red, chartColors.blue],
-          borderWidth: 1,
-        }]
-      },
-      // Year 15
-      {
-        labels: ['You', 'Tax Office', 'Tenant'],
-        datasets: [{
-          data: [71, 0, 29],
-          backgroundColor: [chartColors.green, chartColors.red, chartColors.blue],
-          borderWidth: 1,
-        }]
-      }
-    ];
+    ],
+  });
 
-    // Tax deductions breakdown
-    const taxDeductionsData: ChartData<'pie'> = {
-      labels: ['Mortgage Interest', 'Property Taxes', 'Insurance', 'Repairs & Maintenance', 'Depreciation', 'Other'],
-      datasets: [
-        {
-          data: [45, 22, 8, 10, 12, 3], // Percentages of total deductions
-          backgroundColor: [
-            chartColors.blue,
-            chartColors.green,
-            chartColors.purple,
-            chartColors.red,
-            chartColors.yellow,
-            chartColors.teal,
-          ],
-          borderWidth: 1,
-        }
-      ]
-    };
-
-    // Income charts - after tax cash flow
-    const years = Array.from({ length: 15 }, (_, i) => (i + 1).toString());
-    
-    // After tax cash flow over time
-    const afterTaxCashFlowData: ChartData<'line'> = {
-      labels: years,
-      datasets: [
-        {
-          label: 'After-Tax Cash Flow',
-          data: years.map(year => {
-            // Simple growth calculation
-            const baseValue = 4000;
-            const yearNum = parseInt(year);
-            return baseValue * (1 + yearNum * 0.05);
-          }),
-          borderColor: chartColors.green,
-          backgroundColor: isDarkMode 
-            ? 'rgba(52, 211, 153, 0.2)' 
-            : 'rgba(16, 185, 129, 0.2)',
-          fill: true,
-        }
-      ]
-    };
-
-    // Property value increase over time
-    const propertyValueData: ChartData<'line'> = {
-      labels: years,
-      datasets: [
-        {
-          label: 'Property Value',
-          data: years.map(year => {
-            // Calculate property value growth
-            const initialValue = parseFloat(formData.propertyValue) || 500000;
-            const yearNum = parseInt(year);
-            return initialValue * Math.pow(1.03, yearNum); // 3% annual appreciation
-          }),
-          borderColor: chartColors.purple,
-          backgroundColor: 'transparent',
-        }
-      ]
-    };
-
-    // Total profit per year
-    const totalProfitData: ChartData<'bar'> = {
-      labels: years,
-      datasets: [
-        {
-          label: 'Total Annual Profit',
-          data: years.map(year => {
-            // Calculate annual profit growth
-            const baseProfit = 7000;
-            const yearNum = parseInt(year);
-            return baseProfit * (1 + yearNum * 0.08);
-          }),
-          backgroundColor: chartColors.blue,
-        }
-      ]
-    };
-
-    // Cumulative profit
-    const cumulativeProfitData: ChartData<'line'> = {
-      labels: years,
-      datasets: [
-        {
-          label: 'Cumulative Profit',
-          data: years.map(year => {
-            // Calculate cumulative profit growth
-            const baseProfit = 7000;
-            const yearNum = parseInt(year);
-            let cumulative = 0;
-            for (let i = 1; i <= yearNum; i++) {
-              cumulative += baseProfit * (1 + i * 0.08);
-            }
-            return cumulative;
-          }),
-          borderColor: chartColors.teal,
-          backgroundColor: isDarkMode 
-            ? 'rgba(45, 212, 191, 0.2)' 
-            : 'rgba(20, 184, 166, 0.2)',
-          fill: true,
-        }
-      ]
-    };
-
-    const chartOptions: ChartOptions<'line'> = {
-      responsive: true,
-      plugins: {
-        legend: {
-          position: 'top' as const,
-          labels: {
-            color: isDarkMode ? '#e5e7eb' : '#111827',
-          }
-        },
-        title: {
-          display: false,
-        },
-        tooltip: {
-          backgroundColor: isDarkMode ? '#374151' : '#ffffff',
-          titleColor: isDarkMode ? '#e5e7eb' : '#111827',
-          bodyColor: isDarkMode ? '#e5e7eb' : '#111827',
-          borderColor: isDarkMode ? '#4b5563' : '#e5e7eb',
-          borderWidth: 1,
-        }
-      },
-      scales: {
-        x: {
-          grid: {
-            color: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
-          },
-          ticks: {
-            color: isDarkMode ? '#e5e7eb' : '#111827',
-          }
-        },
-        y: {
-          grid: {
-            color: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
-          },
-          ticks: {
-            color: isDarkMode ? '#e5e7eb' : '#111827',
-          }
-        }
-      }
-    };
-
-    const pieChartOptions: ChartOptions<'pie'> = {
-      responsive: true,
-      plugins: {
-        legend: {
-          position: 'top' as const,
-          labels: {
-            color: isDarkMode ? '#e5e7eb' : '#111827',
-          }
-        },
-        title: {
-          display: false,
-        },
-        tooltip: {
-          backgroundColor: isDarkMode ? '#374151' : '#ffffff',
-          titleColor: isDarkMode ? '#e5e7eb' : '#111827',
-          bodyColor: isDarkMode ? '#e5e7eb' : '#111827',
-          borderColor: isDarkMode ? '#4b5563' : '#e5e7eb',
-          borderWidth: 1,
-        }
-      }
-    };
-
-    return {
-      holdingCostsData,
-      holdingCostsYears,
-      taxDeductionsData,
-      afterTaxCashFlowData,
-      propertyValueData,
-      totalProfitData,
-      cumulativeProfitData,
-      chartOptions,
-      pieChartOptions
-    };
-  };
-
-  const chartData = showResults ? generateChartData() : null;
+  // Property Value Over Time calculation
+  const propertyValues = [];
+  let propertyValue = Number(formData.purchase_price) || 0;
+  const capitalGrowth = Number(formData.capitalGrowth) || 0;
+  const holdingYears = taxResults?.yearly?.length || 0;
+  for (let i = 0; i < holdingYears; i++) {
+    if (i === 0) {
+      propertyValues.push(propertyValue);
+    } else {
+      propertyValue = propertyValue * (1 + capitalGrowth);
+      propertyValues.push(Number(propertyValue.toFixed(2)));
+    }
+  }
 
   return (
-    <div className="py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Property Tax Calculator</h1>
-        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-          Calculate potential tax implications for your property investments including depreciation, deductions, and capital gains.
+    <div className="w-full min-h-screen bg-gray-50 dark:bg-gray-900 py-10 px-2 md:px-0">
+      {isLoading && <LoadingOverlay />}
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-4xl font-extrabold mb-2 text-primary tracking-tight text-center">Property Tax Calculator</h1>
+        <p className="mb-8 text-lg text-gray-700 dark:text-gray-200 max-w-3xl mx-auto text-center">
+          This calculator helps you estimate your annual and long-term property investment performance in Australia.
+          Enter your property and finance details below to see cash flow, deductions, after-tax results, and capital gains for each owner, along with visual breakdowns and projections.
         </p>
-
-        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
-          {/* Tax Parameters Form */}
-          <div className="lg:col-span-1">
-            <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
-              <div className="px-4 py-5 sm:px-6">
-                <h2 className="text-lg font-medium text-gray-900 dark:text-white">Tax Parameters</h2>
-                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                  Enter your income and property details.
-                </p>
-              </div>
-              <div className="border-t border-gray-200 dark:border-gray-700 px-4 py-5 sm:px-6">
-                <form className="space-y-4" onSubmit={handleSubmit}>
-                  <div>
-                    <label htmlFor="taxYear" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Tax Year
-                    </label>
-                    <select
-                      id="taxYear"
-                      name="taxYear"
-                      className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-700 dark:bg-gray-800 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
-                      value={formData.taxYear}
-                      onChange={handleInputChange}
-                    >
-                      <option value="">Select tax year</option>
-                      <option value="2025">2025</option>
-                      <option value="2024">2024</option>
-                      <option value="2023">2023</option>
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="filingStatus" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Filing Status
-                    </label>
-                    <select
-                      id="filingStatus"
-                      name="filingStatus"
-                      className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-700 dark:bg-gray-800 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
-                      value={formData.filingStatus}
-                      onChange={handleInputChange}
-                    >
-                      <option value="">Select filing status</option>
-                      <option value="single">Single</option>
-                      <option value="married-joint">Married Filing Jointly</option>
-                      <option value="married-separate">Married Filing Separately</option>
-                      <option value="head-household">Head of Household</option>
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="annualIncome" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Annual Income ($)
-                    </label>
-                    <div className="mt-1">
-                      <input
-                        type="number"
-                        name="annualIncome"
-                        id="annualIncome"
-                        className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 dark:border-gray-700 dark:bg-gray-800 rounded-md"
-                        placeholder="Enter annual income"
-                        value={formData.annualIncome}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="propertyValue" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Property Value ($)
-                    </label>
-                    <div className="mt-1">
-                      <input
-                        type="number"
-                        name="propertyValue"
-                        id="propertyValue"
-                        className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 dark:border-gray-700 dark:bg-gray-800 rounded-md"
-                        placeholder="Enter property value"
-                        value={formData.propertyValue}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="propertyType" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Property Type
-                    </label>
-                    <select
-                      id="propertyType"
-                      name="propertyType"
-                      className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-700 dark:bg-gray-800 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
-                      value={formData.propertyType}
-                      onChange={handleInputChange}
-                    >
-                      <option value="">Select property type</option>
-                      <option value="residential">Residential</option>
-                      <option value="commercial">Commercial</option>
-                      <option value="multi-family">Multi-Family</option>
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="rentalIncome" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Annual Rental Income ($)
-                    </label>
-                    <div className="mt-1">
-                      <input
-                        type="number"
-                        name="rentalIncome"
-                        id="rentalIncome"
-                        className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 dark:border-gray-700 dark:bg-gray-800 rounded-md"
-                        placeholder="Enter annual rental income"
-                        value={formData.rentalIncome}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="mortgageInterest" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Annual Mortgage Interest ($)
-                    </label>
-                    <div className="mt-1">
-                      <input
-                        type="number"
-                        name="mortgageInterest"
-                        id="mortgageInterest"
-                        className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 dark:border-gray-700 dark:bg-gray-800 rounded-md"
-                        placeholder="Enter annual mortgage interest"
-                        value={formData.mortgageInterest}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="propertyExpenses" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Annual Property Expenses ($)
-                    </label>
-                    <div className="mt-1">
-                      <input
-                        type="number"
-                        name="propertyExpenses"
-                        id="propertyExpenses"
-                        className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 dark:border-gray-700 dark:bg-gray-800 rounded-md"
-                        placeholder="Enter annual property expenses"
-                        value={formData.propertyExpenses}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="purchaseYear" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Year of Purchase
-                    </label>
-                    <div className="mt-1">
-                      <input
-                        type="number"
-                        name="purchaseYear"
-                        id="purchaseYear"
-                        className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 dark:border-gray-700 dark:bg-gray-800 rounded-md"
-                        placeholder="Enter purchase year"
-                        value={formData.purchaseYear}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <button
-                      type="submit"
-                      className="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    >
-                      <Calculator className="-ml-1 mr-2 h-5 w-5" />
-                      Calculate Tax Impact
-                    </button>
-                  </div>
-                </form>
-              </div>
+        <form onSubmit={handleSubmit} className="w-full bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-8 border border-gray-100 dark:border-gray-800 space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <InputField label="State" name="state" type="text" value={formData.state} onChange={handleInputChange} required placeholder="VIC/NSW/QLD/etc" />
+            <InputField label="Date of Purchase" name="dateOfPurchase" type="date" value={formData.dateOfPurchase} onChange={handleInputChange} required placeholder="Select the purchase date" />
+            <InputField label="Date of Sale" name="dateOfSale" type="date" value={formData.dateOfSale} onChange={handleInputChange} placeholder="Leave blank for today" />
+            <InputField label="Holding Years" name="holdingYears" type="number" min={1} max={15} value={formData.holdingYears} onChange={handleInputChange} required placeholder="e.g. 10 (max 15)" />
+            <InputField label="Purchase Price ($)" name="purchase_price" type="number" value={formData.purchase_price} onChange={handleInputChange} required placeholder="e.g. 400000" />
+            <InputField label="Sale Price ($)" name="sale_price" type="number" value={formData.sale_price} onChange={handleInputChange} required placeholder="e.g. 650000" />
+            <InputField label="Rent Per Week ($)" name="rentPerWeek" type="number" value={formData.rentPerWeek} onChange={handleInputChange} required placeholder="e.g. 330" />
+            <InputField label="Weeks Rented Per Year" name="weeksRented" type="number" value={formData.weeksRented} onChange={handleInputChange} required placeholder="e.g. 50" />
+            <InputField label="Interest Loan 1 ($/yr)" name="interestLoan1" type="number" value={formData.interestLoan1} onChange={handleInputChange} placeholder="e.g. 13500" />
+            <InputField label="Interest Loan 2 ($/yr)" name="interestLoan2" type="number" value={formData.interestLoan2} onChange={handleInputChange} placeholder="e.g. 0" />
+            <InputField label="Interest Rate" name="interestRate" type="number" value={formData.interestRate} onChange={handleInputChange} placeholder="e.g. 0.037" />
+            <InputField label="Property Management (%)" name="propertyManager" type="number" value={formData.propertyManager} onChange={handleInputChange} required placeholder="e.g. 7" />
+            <InputField label="Letting Fee (weeks)" name="lettingFeeWeeks" type="number" value={formData.lettingFeeWeeks} onChange={handleInputChange} required placeholder="e.g. 1" />
+            <InputField label="Insurance ($/yr)" name="insurance" type="number" value={formData.insurance} onChange={handleInputChange} placeholder="e.g. 1000" />
+            <InputField label="Maintenance ($/yr)" name="maintenance" type="number" value={formData.maintenance} onChange={handleInputChange} placeholder="e.g. 500" />
+            <InputField label="Strata ($/yr)" name="strata" type="number" value={formData.strata} onChange={handleInputChange} placeholder="e.g. 0" />
+            <InputField label="Water Charges ($/yr)" name="waterCharges" type="number" value={formData.waterCharges} onChange={handleInputChange} placeholder="e.g. 600" />
+            <InputField label="Cleaning ($/yr)" name="cleaning" type="number" value={formData.cleaning} onChange={handleInputChange} placeholder="e.g. 0" />
+            <InputField label="Council Rates ($/yr)" name="councilRates" type="number" value={formData.councilRates} onChange={handleInputChange} placeholder="e.g. 1600" />
+            <InputField label="Gardening/Mowing ($/yr)" name="gardening" type="number" value={formData.gardening} onChange={handleInputChange} placeholder="e.g. 0" />
+            <InputField label="Land Tax ($/yr)" name="landTax" type="number" value={formData.landTax} onChange={handleInputChange} placeholder="e.g. 0" />
+            <InputField label="Legal Expenses ($/yr)" name="legalExpenses" type="number" value={formData.legalExpenses} onChange={handleInputChange} placeholder="e.g. 0" />
+            <InputField label="Pest Control ($/yr)" name="pestControl" type="number" value={formData.pestControl} onChange={handleInputChange} placeholder="e.g. 0" />
+            <InputField label="Bookkeeping ($/yr)" name="bookkeeping" type="number" value={formData.bookkeeping} onChange={handleInputChange} placeholder="e.g. 0" />
+            <InputField label="Postage and Stationery ($/yr)" name="postage" type="number" value={formData.postage} onChange={handleInputChange} placeholder="e.g. 0" />
+            <InputField label="Tax Related Expenses ($/yr)" name="taxRelatedExpenses" type="number" value={formData.taxRelatedExpenses} onChange={handleInputChange} placeholder="e.g. 574.75" />
+            <InputField label="Travel and Car Expenses ($/yr)" name="travel" type="number" value={formData.travel} onChange={handleInputChange} placeholder="e.g. 0" />
+            <InputField label="Once Off Expenses ($)" name="onceOffExpenses" type="number" value={formData.onceOffExpenses} onChange={handleInputChange} placeholder="e.g. 50" />
+            <InputField label="Borrowing Costs ($)" name="borrowingCosts" type="number" value={formData.borrowingCosts} onChange={handleInputChange} placeholder="e.g. 1810" />
+            <InputField label="Depreciation - Buildings ($/yr)" name="depreciationBuildings" type="number" value={formData.depreciationBuildings} onChange={handleInputChange} placeholder="e.g. 3000" />
+            <InputField label="Depreciation - Fittings ($ initial)" name="depreciationFittings" type="number" value={formData.depreciationFittings} onChange={handleInputChange} placeholder="e.g. 5000" />
+            <InputField label="Wage Growth Rate" name="wageGrowth" type="number" value={formData.wageGrowth} onChange={handleInputChange} placeholder="e.g. 0.02" />
+            <InputField label="Rental Growth Rate" name="rentalGrowth" type="number" value={formData.rentalGrowth} onChange={handleInputChange} placeholder="e.g. 0.035" />
+            <InputField label="Inflation Rate" name="inflation" type="number" value={formData.inflation} onChange={handleInputChange} placeholder="e.g. 0.025" />
+            <InputField label="Capital Growth Rate" name="capitalGrowth" type="number" value={formData.capitalGrowth} onChange={handleInputChange} placeholder="e.g. 0.08" />
+            <div className="flex items-center space-x-2">
+              <input id="hasPrivateHealthCover" name="hasPrivateHealthCover" type="checkbox" checked={formData.hasPrivateHealthCover} onChange={handleInputChange} />
+              <label htmlFor="hasPrivateHealthCover" className="select-none">Has Private Health Cover</label>
             </div>
           </div>
-
-          {/* Tax Calculation Results */}
-          <div className="lg:col-span-2">
-            <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
-              <div className="px-4 py-5 sm:px-6">
-                <h2 className="text-lg font-medium text-gray-900 dark:text-white">Tax Calculation Results</h2>
-                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                  Review your property-related tax implications.
-                </p>
+          <h2 className="text-xl font-semibold mt-6 mb-2">Owners</h2>
+          <div className="space-y-2">
+            {formData.owners.map((owner: Owner, idx: number) => (
+              <div key={idx} className="flex flex-row gap-4 items-end">
+                <InputField label="Name" name={`owner_name_${idx}`} type="text" value={owner.name} onChange={(e) => handleOwnerChange(idx, 'name', e.target.value)} required placeholder="e.g. John" />
+                <InputField label="Ownership (%)" name={`owner_ownership_${idx}`} type="number" value={owner.ownership} onChange={(e) => handleOwnerChange(idx, 'ownership', e.target.value)} required placeholder="e.g. 50" />
+                <InputField label="Annual Income ($)" name={`owner_income_${idx}`} type="number" value={owner.income} onChange={(e) => handleOwnerChange(idx, 'income', e.target.value)} required placeholder="e.g. 120000" />
+                {formData.owners.length > 1 && (
+                  <button type="button" className="ml-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded" onClick={() => removeOwner(idx)}>Remove</button>
+                )}
               </div>
-              <div className="border-t border-gray-200 dark:border-gray-700 px-4 py-5 sm:px-6">
-                {!showResults ? (
-                  <div className="flex items-center justify-center flex-col p-8 text-center">
-                    <Calculator className="h-16 w-16 text-gray-400" />
-                    <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-white">No tax calculation results yet</h3>
-                    <p className="mt-2 text-gray-500 dark:text-gray-400">
-                      Fill in the tax parameters and click &quot;Calculate Tax Impact&quot; to see your results.
-                    </p>
+            ))}
+            <button type="button" className="bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg py-2 px-4 mt-2" onClick={addOwner}>Add Owner</button>
+          </div>
+          <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg py-3 px-6 mt-6 w-full text-lg transition">
+            Calculate Tax
+          </button>
+        </form>
+
+        {/* Results */}
+        {taxResults && (
+          <>
+            {/* Defensive: Only render if owner count matches */}
+            {Array.isArray(taxResults.yearly) &&
+              taxResults.yearly.length > 0 &&
+              Array.isArray(taxResults.yearly[0].owners) &&
+              taxResults.yearly[0].owners.length === formData.owners.length ? (
+              <div className="w-full max-w-7xl mx-auto py-8">
+                <h2 className="text-2xl font-bold mb-4">Annual Calculation Breakdown</h2>
+                <div className="mb-4">
+                  <b>Days Owned:</b> {taxResults.days_owned}
+                </div>
+                <div className="mb-4">
+                  <b>Stamp Duty:</b> ${taxResults.transfer_stamp_duty?.toLocaleString() ?? "0"}
+                  <br />
+                  <b>Mortgage Stamp Duty:</b> ${taxResults.mortgage_stamp_duty?.toLocaleString() ?? "0"}
+                  <br />
+                  <b>Upfront Costs:</b> ${taxResults.upfront_costs?.toLocaleString() ?? "0"}
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full border-collapse border border-gray-300 text-sm">
+                    <thead className="bg-gray-100 dark:bg-gray-800">
+                      <tr>
+                        <th>Year</th>
+                        <th>Total Rent</th>
+                        <th>Total Expenses</th>
+                        <th>Pre-Tax Cash Flow</th>
+                        <th>Pre-Tax Cash Flow/Week</th>
+                        <th>Cash Deductions</th>
+                        <th>Borrowing Costs</th>
+                        <th>Depreciation Buildings</th>
+                        <th>Depreciation Fittings</th>
+                        <th>Non-Cash Deductions</th>
+                        <th>Claimable Deductions</th>
+                        <th>Net Income</th>
+                        <th>Total Profit</th>
+                        <th>Cumulative Cash Flow</th>
+                        <th>Cumulative Profit</th>
+                        {Array.isArray(taxResults.yearly[0]?.owners) &&
+                          taxResults.yearly[0].owners.map((owner: any, idx: number) => (
+                            <th key={idx}>{owner.name} After-Tax Cash Flow</th>
+                          ))}
+                        {Array.isArray(taxResults.yearly[0]?.owners) &&
+                          taxResults.yearly[0].owners.map((owner: any, idx: number) => (
+                            <th key={`medicare-levy-${idx}`}>{owner.name} Medicare Levy</th>
+                        ))}
+                        {Array.isArray(taxResults.yearly[0]?.owners) &&
+                          taxResults.yearly[0].owners.map((owner: any, idx: number) => (
+                            <th key={`medicare-surcharge-${idx}`}>{owner.name} Medicare Surcharge</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Array.isArray(taxResults.yearly) && taxResults.yearly.map((year: any, idx: number) => (
+                        <tr key={idx} className={idx % 2 === 0 ? "bg-white dark:bg-gray-900" : "bg-gray-50 dark:bg-gray-800"}>
+                          <td className="px-2 py-1 text-center">{year.year}</td>
+                          <td className="px-2 py-1 text-right">${year.total_rent?.toLocaleString?.() ?? 0}</td>
+                          <td className="px-2 py-1 text-right">${year.total_expenses?.toLocaleString?.() ?? 0}</td>
+                          <td className="px-2 py-1 text-right">${year.pre_tax_cash_flow?.toLocaleString?.() ?? 0}</td>
+                          <td className="px-2 py-1 text-right">${year.pre_tax_cash_flow_week?.toLocaleString?.(undefined, {maximumFractionDigits: 2}) ?? 0}</td>
+                          <td className="px-2 py-1 text-right">${year.total_cash_deductions?.toLocaleString?.() ?? 0}</td>
+                          <td className="px-2 py-1 text-right">${year.borrowing_costs_annual?.toLocaleString?.() ?? 0}</td>
+                          <td className="px-2 py-1 text-right">${year.dep_buildings?.toLocaleString?.() ?? 0}</td>
+                          <td className="px-2 py-1 text-right">${year.dep_fittings?.toLocaleString?.() ?? 0}</td>
+                          <td className="px-2 py-1 text-right">${year.total_non_cash_deductions?.toLocaleString?.() ?? 0}</td>
+                          <td className="px-2 py-1 text-right">${year.total_claimable_deductions?.toLocaleString?.() ?? 0}</td>
+                          <td className="px-2 py-1 text-right">${year.net_income?.toLocaleString?.() ?? 0}</td>
+                          <td className="px-2 py-1 text-right">${year.total_profit?.toLocaleString?.() ?? 0}</td>
+                          <td className="px-2 py-1 text-right">${year.cumulative_cash_flow?.toLocaleString?.() ?? 0}</td>
+                          <td className="px-2 py-1 text-right">${year.cumulative_profit?.toLocaleString?.() ?? 0}</td>
+                          {Array.isArray(year.owners) &&
+                            year.owners.map((owner: any, i: number) => (
+                              <td className="px-2 py-1 text-right" key={i}>${owner.after_tax_cash_flow?.toLocaleString?.() ?? 0}</td>
+                            ))}
+                          {Array.isArray(year.owners) &&
+                            year.owners.map((owner: any, i: number) => (
+                              <td className="px-2 py-1 text-right" key={`medicare-levy-${i}`}>${owner.medicare_levy?.toLocaleString?.() ?? 0}</td>
+                            ))}
+                          {Array.isArray(year.owners) &&
+                            year.owners.map((owner: any, i: number) => (
+                              <td className="px-2 py-1 text-right" key={`medicare-surcharge-${i}`}>${owner.medicare_surcharge?.toLocaleString?.() ?? 0}</td>
+                            ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <h2 className="text-2xl font-bold mt-10 mb-4">State Reference (Sale)</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div>
+                    <p>Agent Commission: <b>${taxResults.state_reference?.agent_commission?.toLocaleString?.() ?? 0}</b></p>
+                    <p>Sales Costs: <b>${taxResults.state_reference?.sales_costs?.toLocaleString?.() ?? 0}</b></p>
+                    <p>Capital Gain: <b>${taxResults.state_reference?.capital_gain?.toLocaleString?.() ?? 0}</b></p>
+                    <p>Building Depreciation Added: <b>${taxResults.state_reference?.building_depreciation_added?.toLocaleString?.() ?? 0}</b></p>
+                    <p>Real Capital Gain: <b>${taxResults.state_reference?.real_capital_gain?.toLocaleString?.() ?? 0}</b></p>
+                    <p>Taxable Capital Gain (50%): <b>${taxResults.state_reference?.taxable_capital_gain?.toLocaleString?.() ?? 0}</b></p>
                   </div>
-                ) : (
-                  <div className="space-y-8">
-                    {/* Summary Metrics at the top */}
-                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                      <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-                        <h3 className="text-base font-medium text-gray-900 dark:text-white">
-                          Income & Deductions
-                        </h3>
-                        <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-4">
-                          <div className="sm:col-span-1">
-                            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Gross Rental Income</dt>
-                            <dd className="mt-1 text-sm text-gray-900 dark:text-white">
-                              ${parseInt(formData.rentalIncome).toLocaleString() || 'N/A'}
-                            </dd>
-                          </div>
-                          <div className="sm:col-span-1">
-                            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Deductible Expenses</dt>
-                            <dd className="mt-1 text-sm text-gray-900 dark:text-white">
-                              ${(() => {
-                                const mortgageInterest = parseInt(formData.mortgageInterest) || 0;
-                                const propertyExpenses = parseInt(formData.propertyExpenses) || 0;
-                                const propertyTaxes = parseInt(formData.propertyValue) * 0.01 || 0; // Approximate property tax
-                                const depreciation = parseFloat(formData.propertyValue) * 0.036 || 0; // 3.6% annual depreciation
-                                return Math.round(mortgageInterest + propertyExpenses + propertyTaxes + depreciation).toLocaleString();
-                              })() || 'N/A'}
-                            </dd>
-                          </div>
-                          <div className="sm:col-span-1">
-                            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Taxable Rental Income</dt>
-                            <dd className="mt-1 text-sm text-gray-900 dark:text-white">
-                              ${(() => {
-                                const rentalIncome = parseInt(formData.rentalIncome) || 0;
-                                const mortgageInterest = parseInt(formData.mortgageInterest) || 0;
-                                const propertyExpenses = parseInt(formData.propertyExpenses) || 0;
-                                const propertyTaxes = parseInt(formData.propertyValue) * 0.01 || 0;
-                                const depreciation = parseFloat(formData.propertyValue) * 0.036 || 0;
-                                const taxableIncome = Math.max(0, rentalIncome - mortgageInterest - propertyExpenses - propertyTaxes - depreciation);
-                                return Math.round(taxableIncome).toLocaleString();
-                              })() || 'N/A'}
-                            </dd>
-                          </div>
-                          <div className="sm:col-span-1">
-                            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Effective Tax Rate</dt>
-                            <dd className="mt-1 text-sm text-gray-900 dark:text-white">
-                              {(() => {
-                                const income = parseInt(formData.annualIncome) || 0;
-                                if (income < 50000) return '12%';
-                                if (income < 100000) return '22%';
-                                if (income < 200000) return '24%';
-                                return '32%';
-                              })() || 'N/A'}
-                            </dd>
-                          </div>
-                        </dl>
-                      </div>
-                      
-                      <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-                        <h3 className="text-base font-medium text-gray-900 dark:text-white">
-                          Tax Impact Summary
-                        </h3>
-                        <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-4">
-                          <div className="sm:col-span-1">
-                            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Tax Without Property</dt>
-                            <dd className="mt-1 text-sm text-gray-900 dark:text-white">
-                              ${(() => {
-                                const income = parseInt(formData.annualIncome) || 0;
-                                let taxRate = 0.12;
-                                if (income < 50000) taxRate = 0.12;
-                                if (income < 100000) taxRate = 0.22;
-                                if (income < 200000) taxRate = 0.24;
-                                if (income >= 200000) taxRate = 0.32;
-                                return Math.round(income * taxRate).toLocaleString();
-                              })() || 'N/A'}
-                            </dd>
-                          </div>
-                          <div className="sm:col-span-1">
-                            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Tax With Property</dt>
-                            <dd className="mt-1 text-sm text-gray-900 dark:text-white">
-                              ${(() => {
-                                const income = parseInt(formData.annualIncome) || 0;
-                                const rentalIncome = parseInt(formData.rentalIncome) || 0;
-                                const mortgageInterest = parseInt(formData.mortgageInterest) || 0;
-                                const propertyExpenses = parseInt(formData.propertyExpenses) || 0;
-                                const propertyTaxes = parseInt(formData.propertyValue) * 0.01 || 0;
-                                const depreciation = parseFloat(formData.propertyValue) * 0.036 || 0;
-                                
-                                const taxableRentalIncome = Math.max(0, rentalIncome - mortgageInterest - propertyExpenses - propertyTaxes - depreciation);
-                                const totalTaxableIncome = income + taxableRentalIncome;
-                                
-                                let taxRate = 0.12;
-                                if (totalTaxableIncome < 50000) taxRate = 0.12;
-                                if (totalTaxableIncome < 100000) taxRate = 0.22;
-                                if (totalTaxableIncome < 200000) taxRate = 0.24;
-                                if (totalTaxableIncome >= 200000) taxRate = 0.32;
-                                
-                                return Math.round(totalTaxableIncome * taxRate).toLocaleString();
-                              })() || 'N/A'}
-                            </dd>
-                          </div>
-                          <div className="sm:col-span-1">
-                            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Net Tax Impact</dt>
-                            <dd className="mt-1 text-sm font-medium text-red-600 dark:text-red-400">
-                              ${(() => {
-                                const income = parseInt(formData.annualIncome) || 0;
-                                const rentalIncome = parseInt(formData.rentalIncome) || 0;
-                                const mortgageInterest = parseInt(formData.mortgageInterest) || 0;
-                                const propertyExpenses = parseInt(formData.propertyExpenses) || 0;
-                                const propertyTaxes = parseInt(formData.propertyValue) * 0.01 || 0;
-                                const depreciation = parseFloat(formData.propertyValue) * 0.036 || 0;
-                                
-                                // Without property
-                                let taxRateWithout = 0.12;
-                                if (income < 50000) taxRateWithout = 0.12;
-                                if (income < 100000) taxRateWithout = 0.22;
-                                if (income < 200000) taxRateWithout = 0.24;
-                                if (income >= 200000) taxRateWithout = 0.32;
-                                const taxWithout = income * taxRateWithout;
-                                
-                                // With property
-                                const taxableRentalIncome = Math.max(0, rentalIncome - mortgageInterest - propertyExpenses - propertyTaxes - depreciation);
-                                const totalTaxableIncome = income + taxableRentalIncome;
-                                
-                                let taxRateWith = 0.12;
-                                if (totalTaxableIncome < 50000) taxRateWith = 0.12;
-                                if (totalTaxableIncome < 100000) taxRateWith = 0.22;
-                                if (totalTaxableIncome < 200000) taxRateWith = 0.24;
-                                if (totalTaxableIncome >= 200000) taxRateWith = 0.32;
-                                
-                                const taxWith = totalTaxableIncome * taxRateWith;
-                                
-                                // Net impact
-                                const impact = taxWith - taxWithout;
-                                const prefix = impact > 0 ? '+' : '';
-                                return `${prefix}${Math.round(impact).toLocaleString()}`;
-                              })() || 'N/A'}
-                            </dd>
-                          </div>
-                          <div className="sm:col-span-1">
-                            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">After-Tax Cash Flow</dt>
-                            <dd className="mt-1 text-sm font-medium text-green-600 dark:text-green-400">
-                              ${(() => {
-                                const rentalIncome = parseInt(formData.rentalIncome) || 0;
-                                const mortgageInterest = parseInt(formData.mortgageInterest) || 0;
-                                const propertyExpenses = parseInt(formData.propertyExpenses) || 0;
-                                
-                                // Simplified calculation - actual would be more complex
-                                const cashFlow = rentalIncome - mortgageInterest - propertyExpenses;
-                                return Math.round(cashFlow).toLocaleString();
-                              })() || 'N/A'}
-                            </dd>
-                          </div>
-                        </dl>
-                      </div>
+                  <div>
+                    <p>Owner Portions:</p>
+                    <ul>
+                      {Array.isArray(taxResults.state_reference?.owner_portions) && taxResults.state_reference.owner_portions.map((portion: number, idx: number) => (
+                        <li key={idx}>{formData.owners[idx]?.name || `Owner ${idx+1}`}: <b>${portion?.toLocaleString?.() ?? 0}</b></li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+                <h2 className="text-2xl font-bold mt-10 mb-4">Charts & Breakdowns</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                  <div style={{ maxWidth: 500, height: 320 }}>
+                    <h3 className="font-bold mb-2">Expense Breakdown</h3>
+                    <Bar data={safeBarData(
+                      taxResults?.deductions?.labels,
+                      taxResults?.deductions?.data,
+                      "Expenses",
+                      "#2563eb"
+                    )} options={{ responsive: true, plugins: { legend: { display: false } }, maintainAspectRatio: false }} />
+                  </div>
+                  <div style={{ maxWidth: 500, height: 320 }}>
+                    <h3 className="font-bold mb-2">Deduction Breakdown</h3>
+                    <Bar data={safeBarData(
+                      taxResults?.deductions?.labels,
+                      taxResults?.deductions?.data,
+                      "Deductions",
+                      "#10b981"
+                    )} options={{ responsive: true, plugins: { legend: { display: false } }, maintainAspectRatio: false }} />
+                  </div>
+                  {taxResults?.holdingCosts && Array.isArray(taxResults.holdingCosts.labels) && Array.isArray(taxResults.holdingCosts.data) && (
+                    <div style={{ maxWidth: 500, height: 320 }}>
+                      <h3 className="font-bold mb-2">Holding Costs Breakdown</h3>
+                      <Pie
+                        data={safePieData(
+                          taxResults.holdingCosts.labels,
+                          taxResults.holdingCosts.data,
+                          ["#2563eb", "#10b981", "#f59e42"]
+                        )}
+                        options={{ responsive: true, maintainAspectRatio: false }}
+                      />
                     </div>
-                    
-                    {/* Holding Costs - Multiple Pie Charts */}
-                    <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-                      <h3 className="text-base font-medium text-gray-900 dark:text-white mb-4">
-                        Holding Costs Over Time
-                      </h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {chartData!.holdingCostsYears.map((data, index) => (
-                          <div key={index} className="flex flex-col items-center">
-                            <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-                              {index === 0 ? 'Year 1' : index === 1 ? 'Year 5' : index === 2 ? 'Year 10' : 'Year 15'}
-                            </h4>
-                            <div className="h-48 w-full flex items-center justify-center">
-                              <Pie 
-                                data={data} 
-                                options={chartData!.pieChartOptions}
-                              />
-                            </div>
+                  )}
+                  <div style={{ maxWidth: 500, height: 320 }}>
+                    <h3 className="font-bold mb-2">Total Profit Per Year</h3>
+                    <Bar data={safeBarData(
+                      taxResults?.yearly?.map((y: any) => `Year ${y.year}`),
+                      taxResults?.total_profit_per_year,
+                      "Total Profit Per Year",
+                      "#a21caf"
+                    )} options={{ responsive: true, maintainAspectRatio: false }} />
+                  </div>
+                  <div style={{ maxWidth: 500, height: 320 }}>
+                    <h3 className="font-bold mb-2">Cumulative Cash Flow</h3>
+                    <Line data={safeLineData(
+                      taxResults?.yearly?.map((y: any) => `Year ${y.year}`),
+                      taxResults?.cumulative_cash_flow,
+                      "Cumulative Cash Flow",
+                      "#10b981",
+                      "rgba(16,185,129,0.2)"
+                    )} options={{ responsive: true, maintainAspectRatio: false }} />
+                  </div>
+                  <div style={{ maxWidth: 500, height: 320 }}>
+                    <h3 className="font-bold mb-2">Cumulative Profit</h3>
+                    <Line data={safeLineData(
+                      taxResults?.yearly?.map((y: any) => `Year ${y.year}`),
+                      taxResults?.cumulative_profit,
+                      "Cumulative Profit",
+                      "#f59e42",
+                      "rgba(245,158,66,0.2)"
+                    )} options={{ responsive: true, maintainAspectRatio: false }} />
+                  </div>
+                  {Array.isArray(taxResults.holdingCostsYears) && taxResults.holdingCostsYears.length > 0 && (
+                    <div className="col-span-full">
+                      <h3 className="font-bold mb-2">Holding Costs Breakdown (Yearly)</h3>
+                      <div className="flex flex-wrap gap-6">
+                        {taxResults.holdingCostsYears.map((hc: any, idx: number) => (
+                          <div key={idx} style={{ width: 250, height: 250 }}>
+                            <div className="text-center font-semibold mb-1">Year {hc.year}</div>
+                            <Pie
+                              data={{
+                                labels: hc.labels,
+                                datasets: [{
+                                  data: hc.data,
+                                  backgroundColor: ["#2563eb", "#10b981", "#f59e42"],
+                                }]
+                              }}
+                              options={{ responsive: true, maintainAspectRatio: false }}
+                            />
                           </div>
                         ))}
                       </div>
                     </div>
-                    
-                    {/* Expense Charts - 4 Charts Grid */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      {/* Tax Deductions Breakdown */}
-                      <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-                        <h3 className="text-base font-medium text-gray-900 dark:text-white mb-4">
-                          Tax Deductions Breakdown
-                        </h3>
-                        <div className="h-64">
-                          <Doughnut 
-                            data={chartData!.taxDeductionsData} 
-                            options={chartData!.pieChartOptions}
-                          />
-                        </div>
-                      </div>
-                      
-                      {/* After Tax Cash Flow */}
-                      <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-                        <h3 className="text-base font-medium text-gray-900 dark:text-white mb-4">
-                          After Tax Cash Flow
-                        </h3>
-                        <div className="h-64">
-                          <Line 
-                            data={chartData!.afterTaxCashFlowData} 
-                            options={chartData!.chartOptions}
-                          />
-                        </div>
-                      </div>
-                      
-                      {/* Property Value */}
-                      <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-                        <h3 className="text-base font-medium text-gray-900 dark:text-white mb-4">
-                          Property Value
-                        </h3>
-                        <div className="h-64">
-                          <Line 
-                            data={chartData!.propertyValueData} 
-                            options={chartData!.chartOptions}
-                          />
-                        </div>
-                      </div>
-                      
-                      {/* Total Profit Per Year */}
-                      <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-                        <h3 className="text-base font-medium text-gray-900 dark:text-white mb-4">
-                          Total Profit Per Year
-                        </h3>
-                        <div className="h-64">
-                          <Bar 
-                            data={chartData!.totalProfitData} 
-                            options={chartData!.chartOptions}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Cumulative Charts */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      {/* Cumulative Cash Flow */}
-                      <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-                        <h3 className="text-base font-medium text-gray-900 dark:text-white mb-4">
-                          Cumulative Cash Flow
-                        </h3>
-                        <div className="h-64">
-                          <Line 
-                            data={chartData!.afterTaxCashFlowData} 
-                            options={chartData!.chartOptions}
-                          />
-                        </div>
-                      </div>
-                      
-                      {/* Cumulative Profit */}
-                      <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-                        <h3 className="text-base font-medium text-gray-900 dark:text-white mb-4">
-                          Cumulative Profit
-                        </h3>
-                        <div className="h-64">
-                          <Line 
-                            data={chartData!.cumulativeProfitData} 
-                            options={chartData!.chartOptions}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Download Section */}
-                    <div className="mt-4 flex justify-end">
-                      <button
-                        type="button"
-                        className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                      >
-                        <DownloadCloud className="-ml-1 mr-2 h-5 w-5" />
-                        Download Tax Report
-                      </button>
-                    </div>
+                  )}
+                  <div style={{ maxWidth: 500, height: 320 }}>
+                    <h3 className="font-bold mb-2">Property Value Over Time</h3>
+                    <Line
+                      data={{
+                        labels: taxResults?.yearly?.map((y: any) => `Year ${y.year}`),
+                        datasets: [
+                          {
+                            label: "Estimated Property Value",
+                            data: propertyValues,
+                            borderColor: "#2563eb",
+                            backgroundColor: "rgba(37,99,235,0.2)",
+                            fill: true,
+                          },
+                        ],
+                      }}
+                      options={{ responsive: true, maintainAspectRatio: false }}
+                    />
                   </div>
-                )}
+                </div>
+                <div className="mt-10" style={{ maxWidth: 900, margin: "0 auto" }}>
+                  {/*<h2 className="text-xl font-bold mb-4">After-tax Cash Flow Per Owner (Yearly)</h2>
+                  {chartData && (
+                    <Bar data={chartData as any} options={{ responsive: true, plugins: { legend: { position: 'top' } }, maintainAspectRatio: false, aspectRatio: 2.5 }} />
+                  )}
+                  */}
+                </div>
               </div>
-            </div>
-          </div>
-        </div>
+            ) : (
+              <div className="text-red-600 font-bold mt-8">
+                Owner count mismatch between your input and calculation result.<br />
+                Please click <b>Calculate Tax</b> again after changing owners.
+              </div>
+            )}
+          </>
+        )}
       </div>
+    </div>
+  );
+}
+
+// --- Helper Components ---
+function InputField({
+  label,
+  name,
+  type,
+  value,
+  onChange,
+  required = false,
+  placeholder = "",
+  description = "",
+  min,
+  max,
+}: {
+  label: string;
+  name: string;
+  type: string;
+  value: string | number;
+  onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
+  required?: boolean;
+  placeholder?: string;
+  description?: string;
+  min?: number;
+  max?: number;
+}) {
+  return (
+    <div>
+      <label className="block text-sm font-medium mb-1" htmlFor={name}>{label}</label>
+      <input
+        id={name}
+        name={name}
+        type={type}
+        value={value}
+        onChange={onChange}
+        required={required}
+        placeholder={placeholder}
+        min={min}
+        max={max}
+        className="input w-full"
+      />
+      {description && <div className="text-xs text-gray-500">{description}</div>}
     </div>
   );
 }
