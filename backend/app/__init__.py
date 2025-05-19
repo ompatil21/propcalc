@@ -5,6 +5,7 @@ from flask_pymongo import PyMongo
 from flask_jwt_extended import JWTManager
 from dotenv import load_dotenv  # to load .env file
 
+
 # Load environment variables
 load_dotenv()
 
@@ -14,6 +15,9 @@ jwt = JWTManager()
 
 def create_app():
     app = Flask(__name__)
+    from app.routes.properties import bp as properties_bp
+
+    app.register_blueprint(properties_bp)
 
     # Load config from .env
     mongo_uri = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
