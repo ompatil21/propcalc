@@ -1,6 +1,7 @@
 'use client'
 
 import { useForm } from 'react-hook-form'
+import { useState } from 'react'
 import { TrendingDown, Wallet } from 'lucide-react'
 
 type Props = {
@@ -13,29 +14,38 @@ type Props = {
     onBack: () => void
 }
 
-
 export default function Step3RentalInfo({ data, updateFields, onNext, onBack }: Props) {
+    const [loading, setLoading] = useState(false)
+
     const {
         register,
         handleSubmit,
         formState: { errors, isValid },
+        watch,
     } = useForm({
         defaultValues: data,
         mode: 'onChange',
     })
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const onSubmit = (values: any) => {
-        updateFields(values)
-        onNext()
+        setLoading(true)
+        setTimeout(() => {
+            updateFields(values)
+            onNext()
+        }, 500)
     }
+
+    const rent = watch('rent')
+    const weeklyRent = rent ? (Number(rent) / 4.33).toFixed(2) : ''
 
     return (
         <form
             onSubmit={handleSubmit(onSubmit)}
             className="space-y-6 transition-all duration-300"
         >
-            {/* Rent */}
+            <h2 className="text-lg font-semibold text-gray-800">3. Rental Information</h2>
+
+            {/* Monthly Rent */}
             <div>
                 <label className="block text-gray-700 font-semibold mb-1 flex items-center gap-2">
                     <Wallet size={18} /> Monthly Rent ($)
@@ -47,6 +57,9 @@ export default function Step3RentalInfo({ data, updateFields, onNext, onBack }: 
                         }`}
                     placeholder="e.g. 2000"
                 />
+                {weeklyRent && (
+                    <p className="text-sm text-gray-500 mt-1">~ Weekly Rent: ${weeklyRent}</p>
+                )}
                 {errors.rent && <p className="text-red-500 text-sm mt-1">This field is required</p>}
             </div>
 
@@ -80,11 +93,13 @@ export default function Step3RentalInfo({ data, updateFields, onNext, onBack }: 
 
                 <button
                     type="submit"
-                    disabled={!isValid}
-                    className={`px-6 py-2 rounded-md text-white font-semibold transition ${isValid ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-400 cursor-not-allowed'
+                    disabled={!isValid || loading}
+                    className={`px-6 py-2 rounded-md text-white font-semibold transition ${!isValid || loading
+                        ? 'bg-gray-400 cursor-not-allowed'
+                        : 'bg-blue-600 hover:bg-blue-700'
                         }`}
                 >
-                    Next →
+                    {loading ? 'Loading...' : 'Next →'}
                 </button>
             </div>
         </form>
