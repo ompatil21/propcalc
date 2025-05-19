@@ -10,7 +10,12 @@ const inter = Inter({ subsets: ["latin"] });
 
 export default function RootLayoutClient({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const hideNavbar = pathname === "/" || pathname?.startsWith("/admin");
+  const hideNavbar =
+    pathname === "/" ||
+    pathname?.startsWith("/admin") ||
+    pathname === "/login" ||
+    pathname === "/register";
+
 
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
