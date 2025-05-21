@@ -31,27 +31,49 @@ export default function Step2BCostBreakdown({ data, updateFields, onNext, onBack
     }
 
     const purchaseCosts = [
-        'stamp_duty', 'gst', 'legal_fees', 'disbursements', 'building_inspection', 'registration_title'
+        { key: 'stamp_duty', label: 'Stamp Duty' },
+        { key: 'gst', label: 'GST' },
+        { key: 'legal_fees', label: 'Legal Fees' },
+        { key: 'disbursements', label: 'Disbursements' },
+        { key: 'building_inspection', label: 'Building Inspection' },
+        { key: 'registration_title', label: 'Registration of Title' },
     ]
 
     const borrowingCosts = [
-        'mortgage_stamp_duty', 'mortgage_insurance_1', 'stamp_duty_mi_1', 'mortgage_insurance_2',
-        'stamp_duty_mi_2', 'loan_app_fee', 'valuation_fee', 'search_fees', 'registration_mortgage'
+        { key: 'mortgage_stamp_duty', label: 'Mortgage Stamp Duty' },
+        { key: 'mortgage_insurance_1', label: 'Mortgage Insurance #1' },
+        { key: 'stamp_duty_mi_1', label: 'Stamp Duty on MI #1' },
+        { key: 'mortgage_insurance_2', label: 'Mortgage Insurance #2' },
+        { key: 'stamp_duty_mi_2', label: 'Stamp Duty on MI #2' },
+        { key: 'loan_app_fee', label: 'Loan Application Fee' },
+        { key: 'valuation_fee', label: 'Valuation Fee' },
+        { key: 'search_fees', label: 'Search Fees' },
+        { key: 'registration_mortgage', label: 'Registration of Mortgage' },
+    ]
+
+    const optionalExtras = [
+        { key: 'pest_control', label: 'Pest Control' },
+        { key: 'bookkeeping', label: 'Bookkeeping' },
+        { key: 'postage', label: 'Postage and Stationery' },
+        { key: 'tax_related_expenses', label: 'Tax Related Expenses' },
+        { key: 'travel', label: 'Travel and Car Expenses' },
+        { key: 'once_off_expenses', label: 'Once Off Expenses' },
+        { key: 'holding_years', label: 'Holding Years' },
     ]
 
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 transition-all duration-300">
-            <h2 className="text-lg font-semibold text-gray-800">2. Cost Breakdown</h2>
+            <h2 className="text-lg font-semibold text-gray-800">2B. Cost Breakdown</h2>
 
             {/* Purchase Costs */}
             <h3 className="text-sm font-semibold text-gray-600">Purchase Costs</h3>
-            {purchaseCosts.map(field => (
-                <div key={field}>
-                    <label className="block font-medium mb-1 text-gray-700 capitalize">{field.replace(/_/g, ' ')}</label>
+            {purchaseCosts.map(({ key, label }) => (
+                <div key={key}>
+                    <label className="block font-medium mb-1 text-gray-700">{label}</label>
                     <input
                         type="number"
                         step="any"
-                        {...register(field)}
+                        {...register(key)}
                         className="w-full border rounded-md px-4 py-2 border-gray-300 focus:ring-2 focus:outline-none focus:ring-blue-500"
                     />
                 </div>
@@ -59,13 +81,29 @@ export default function Step2BCostBreakdown({ data, updateFields, onNext, onBack
 
             {/* Borrowing Costs */}
             <h3 className="text-sm font-semibold text-gray-600 pt-4">Borrowing Costs</h3>
-            {borrowingCosts.map(field => (
-                <div key={field}>
-                    <label className="block font-medium mb-1 text-gray-700 capitalize">{field.replace(/_/g, ' ')}</label>
+            {borrowingCosts.map(({ key, label }) => (
+                <div key={key}>
+                    <label className="block font-medium mb-1 text-gray-700">{label}</label>
                     <input
                         type="number"
                         step="any"
-                        {...register(field)}
+                        {...register(key)}
+                        className="w-full border rounded-md px-4 py-2 border-gray-300 focus:ring-2 focus:outline-none focus:ring-blue-500"
+                    />
+                </div>
+            ))}
+
+            {/* Optional Extras */}
+            <h3 className="text-sm font-semibold text-gray-600 pt-4">Optional Costs</h3>
+            {optionalExtras.map(({ key, label }) => (
+                <div key={key}>
+                    <label className="block font-medium mb-1 text-gray-700">
+                        {label} <span className="text-gray-400">(optional)</span>
+                    </label>
+                    <input
+                        type="number"
+                        step="any"
+                        {...register(key)}
                         className="w-full border rounded-md px-4 py-2 border-gray-300 focus:ring-2 focus:outline-none focus:ring-blue-500"
                     />
                 </div>
@@ -84,7 +122,10 @@ export default function Step2BCostBreakdown({ data, updateFields, onNext, onBack
                 <button
                     type="submit"
                     disabled={!isValid || loading}
-                    className={`px-6 py-2 rounded-md text-white font-semibold transition ${!isValid || loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+                    className={`px-6 py-2 rounded-md text-white font-semibold transition ${!isValid || loading
+                            ? 'bg-gray-400 cursor-not-allowed'
+                            : 'bg-blue-600 hover:bg-blue-700'
+                        }`}
                 >
                     {loading ? 'Loading...' : 'Next →'}
                 </button>
