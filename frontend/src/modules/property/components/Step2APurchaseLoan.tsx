@@ -38,13 +38,13 @@ export default function Step2APurchaseLoan({ data, updateFields, onNext, onBack 
     }
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 transition-all duration-300">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8 transition-all duration-300">
             <h2 className="text-lg font-semibold text-gray-800">1. Purchase & Loan Details</h2>
 
             {/* Purchase Price */}
             <div>
                 <label className="block font-semibold mb-1 flex items-center gap-2 text-gray-700">
-                    <DollarSign size={18} /> Purchase Price
+                    <DollarSign size={18} /> Purchase Price ($)
                 </label>
                 <input
                     type="number"
@@ -56,7 +56,7 @@ export default function Step2APurchaseLoan({ data, updateFields, onNext, onBack 
             {/* Deposit */}
             <div>
                 <label className="block font-semibold mb-1 flex items-center gap-2 text-gray-700">
-                    <Banknote size={18} /> Deposit
+                    <Banknote size={18} /> Deposit ($)
                 </label>
                 <input
                     type="number"
@@ -68,7 +68,7 @@ export default function Step2APurchaseLoan({ data, updateFields, onNext, onBack 
             {/* Loan Amount */}
             <div>
                 <label className="block font-semibold mb-1 flex items-center gap-2 text-gray-700">
-                    <DollarSign size={18} /> Loan Amount
+                    <DollarSign size={18} /> Loan Amount ($)
                 </label>
                 <input
                     type="number"

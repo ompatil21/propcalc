@@ -4,12 +4,11 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from '@/components/ui/use-toast'
 import Step1BasicInfo from './Step1BasicInfo'
-import Step2PurchaseDetails from './Step2PurchaseDetails'
+import Step2Wrapper from './Step2Wrapper'
 import Step3RentalInfo from './Step3RentalInfo'
 import Step4Expenses from './Step4Expenses'
 import Step5OwnershipIncome from './Step5OwnershipIncome'
 import { createProperty } from '@/services/api'
-import Step2Wrapper from './Step2Wrapper'
 
 type Owner = {
     name: string
@@ -21,40 +20,68 @@ type PropertyFormData = {
     title: string
     location: string
     type: string
+    state: string
+    date_of_purchase: string
+    date_of_construction: string
     purchase_price: number | undefined
     deposit: number | undefined
     loan_amount: number | undefined
     interest_rate: number | undefined
     loan_term: number | undefined
     rent: number | undefined
+    rentPerWeek: number | undefined
+    weeksRented: number | undefined
     vacancy_rate: number | undefined
+    lvr: number | undefined
     council_rates: number | undefined
     insurance: number | undefined
     maintenance: number | undefined
     property_manager: number | undefined
     owners: Owner[]
     wage_growth: number | undefined
+    rental_growth?: number
+    capital_growth_rate?: number
+    buildings_value?: number
+    fittings_value?: number
+    inflation?: number
+    preferred_lvr?: number
+    medicare_surcharge?: boolean
+    date_of_sale?: string
 }
 
 export default function PropertyForm() {
-    const [step, setStep] = useState(1)
+    const [step, setStep] = useState<number>(1)
     const [formData, setFormData] = useState<PropertyFormData>({
         title: '',
         location: '',
         type: '',
+        state: '',
+        date_of_purchase: '',
+        date_of_construction: '',
         purchase_price: undefined,
         deposit: undefined,
         loan_amount: undefined,
         interest_rate: undefined,
         loan_term: undefined,
         rent: undefined,
+        rentPerWeek: undefined,
+        weeksRented: undefined,
         vacancy_rate: undefined,
+        lvr: undefined,
         council_rates: undefined,
         insurance: undefined,
         maintenance: undefined,
         property_manager: undefined,
         owners: [{ name: '', ownership: undefined, income: undefined }],
-        wage_growth: undefined
+        wage_growth: undefined,
+        rental_growth: undefined,
+        capital_growth_rate: undefined,
+        buildings_value: undefined,
+        fittings_value: undefined,
+        inflation: undefined,
+        preferred_lvr: undefined,
+        medicare_surcharge: false,
+        date_of_sale: ''
     })
 
     const router = useRouter()
@@ -120,7 +147,12 @@ export default function PropertyForm() {
 
                     {step === 4 && (
                         <Step4Expenses
-                            data={formData}
+                            data={{
+                                council_rates: formData.council_rates,
+                                insurance: formData.insurance,
+                                maintenance: formData.maintenance,
+                                property_manager: formData.property_manager
+                            }}
                             updateFields={updateFields}
                             onBack={() => setStep(3)}
                             onNext={() => setStep(5)}
@@ -132,10 +164,15 @@ export default function PropertyForm() {
                             data={formData}
                             updateFields={updateFields}
                             onBack={() => setStep(4)}
-                            onSubmit={async (finalData) => {
+                            onSubmit={async (finalStepData) => {
                                 try {
-                                    console.log("🚀 SENDING TO BACKEND:", finalData)
-                                    await createProperty(finalData)
+                                    const fullPayload = {
+                                        ...formData,        // Steps 1–4
+                                        ...finalStepData    // Step 5 additions
+                                    }
+
+                                    console.log("🚀 SENDING TO BACKEND:", fullPayload)
+                                    await createProperty(fullPayload)
 
                                     toast({
                                         title: 'Property Added',

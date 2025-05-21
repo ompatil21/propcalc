@@ -7,7 +7,11 @@ import { TrendingDown, Wallet } from 'lucide-react'
 type Props = {
     data: {
         rent: number | undefined
+        rentPerWeek: number | undefined
+        weeksRented: number | undefined
         vacancy_rate: number | undefined
+        lvr: number | undefined
+        lmiRequired?: boolean
     }
     updateFields: (fields: Partial<Props['data']>) => void
     onNext: () => void
@@ -36,7 +40,7 @@ export default function Step3RentalInfo({ data, updateFields, onNext, onBack }: 
     }
 
     const rent = watch('rent')
-    const weeklyRent = rent ? (Number(rent) / 4.33).toFixed(2) : ''
+    const weeklyRentEstimate = rent ? (Number(rent) / 4.33).toFixed(2) : ''
 
     return (
         <form
@@ -57,10 +61,34 @@ export default function Step3RentalInfo({ data, updateFields, onNext, onBack }: 
                         }`}
                     placeholder="e.g. 2000"
                 />
-                {weeklyRent && (
-                    <p className="text-sm text-gray-500 mt-1">~ Weekly Rent: ${weeklyRent}</p>
+                {weeklyRentEstimate && (
+                    <p className="text-sm text-gray-500 mt-1">~ Weekly Rent: ${weeklyRentEstimate}</p>
                 )}
                 {errors.rent && <p className="text-red-500 text-sm mt-1">This field is required</p>}
+            </div>
+
+            {/* Rent Per Week */}
+            <div>
+                <label className="block text-gray-700 font-semibold mb-1">Actual Weekly Rent ($)</label>
+                <input
+                    type="number"
+                    {...register('rentPerWeek', { required: true })}
+                    className={`w-full border rounded-md px-4 py-2 focus:outline-none focus:ring-2 ${errors.rentPerWeek ? 'border-red-500 focus:ring-red-400' : 'border-gray-300 focus:ring-blue-500'}`}
+                    placeholder="e.g. 450"
+                />
+                {errors.rentPerWeek && <p className="text-red-500 text-sm mt-1">This field is required</p>}
+            </div>
+
+            {/* Weeks Rented */}
+            <div>
+                <label className="block text-gray-700 font-semibold mb-1">Weeks Rented Per Year</label>
+                <input
+                    type="number"
+                    {...register('weeksRented', { required: true, min: 0, max: 52 })}
+                    className={`w-full border rounded-md px-4 py-2 focus:outline-none focus:ring-2 ${errors.weeksRented ? 'border-red-500 focus:ring-red-400' : 'border-gray-300 focus:ring-blue-500'}`}
+                    placeholder="e.g. 50"
+                />
+                {errors.weeksRented && <p className="text-red-500 text-sm mt-1">Required (0–52 weeks)</p>}
             </div>
 
             {/* Vacancy Rate */}
@@ -81,8 +109,31 @@ export default function Step3RentalInfo({ data, updateFields, onNext, onBack }: 
                 )}
             </div>
 
-            {/* Buttons */}
-            <div className="flex justify-between pt-4">
+            {/* LVR */}
+            <div>
+                <label className="block text-gray-700 font-semibold mb-1">LVR (%)</label>
+                <input
+                    type="number"
+                    step="any"
+                    {...register('lvr', { required: true, min: 0, max: 100 })}
+                    className={`w-full border rounded-md px-4 py-2 focus:outline-none focus:ring-2 ${errors.lvr ? 'border-red-500 focus:ring-red-400' : 'border-gray-300 focus:ring-blue-500'}`}
+                />
+                {errors.lvr && <p className="text-red-500 text-sm mt-1">Enter a value between 0 and 100</p>}
+            </div>
+
+            {/* LMI Required */}
+            <div>
+                <label className="block text-gray-700 font-semibold mb-1">LMI Required?</label>
+                <input
+                    type="checkbox"
+                    {...register('lmiRequired')}
+                    className="mr-2"
+                />
+                <span className="text-sm text-gray-600">Check if LVR exceeds 80%</span>
+            </div>
+
+            {/* Navigation Buttons */}
+            <div className="flex justify-between pt-6">
                 <button
                     type="button"
                     onClick={onBack}

@@ -51,16 +51,6 @@ export default function Step2BCostBreakdown({ data, updateFields, onNext, onBack
         { key: 'registration_mortgage', label: 'Registration of Mortgage' },
     ]
 
-    const optionalExtras = [
-        { key: 'pest_control', label: 'Pest Control' },
-        { key: 'bookkeeping', label: 'Bookkeeping' },
-        { key: 'postage', label: 'Postage and Stationery' },
-        { key: 'tax_related_expenses', label: 'Tax Related Expenses' },
-        { key: 'travel', label: 'Travel and Car Expenses' },
-        { key: 'once_off_expenses', label: 'Once Off Expenses' },
-        { key: 'holding_years', label: 'Holding Years' },
-    ]
-
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 transition-all duration-300">
             <h2 className="text-lg font-semibold text-gray-800">2B. Cost Breakdown</h2>
@@ -93,22 +83,6 @@ export default function Step2BCostBreakdown({ data, updateFields, onNext, onBack
                 </div>
             ))}
 
-            {/* Optional Extras */}
-            <h3 className="text-sm font-semibold text-gray-600 pt-4">Optional Costs</h3>
-            {optionalExtras.map(({ key, label }) => (
-                <div key={key}>
-                    <label className="block font-medium mb-1 text-gray-700">
-                        {label} <span className="text-gray-400">(optional)</span>
-                    </label>
-                    <input
-                        type="number"
-                        step="any"
-                        {...register(key)}
-                        className="w-full border rounded-md px-4 py-2 border-gray-300 focus:ring-2 focus:outline-none focus:ring-blue-500"
-                    />
-                </div>
-            ))}
-
             {/* Navigation Buttons */}
             <div className="flex justify-between pt-6">
                 <button
@@ -122,9 +96,7 @@ export default function Step2BCostBreakdown({ data, updateFields, onNext, onBack
                 <button
                     type="submit"
                     disabled={!isValid || loading}
-                    className={`px-6 py-2 rounded-md text-white font-semibold transition ${!isValid || loading
-                            ? 'bg-gray-400 cursor-not-allowed'
-                            : 'bg-blue-600 hover:bg-blue-700'
+                    className={`px-6 py-2 rounded-md text-white font-semibold transition ${!isValid || loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
                         }`}
                 >
                     {loading ? 'Loading...' : 'Next →'}

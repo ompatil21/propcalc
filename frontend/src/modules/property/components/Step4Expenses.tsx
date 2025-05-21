@@ -2,16 +2,10 @@
 
 import { useForm } from 'react-hook-form'
 import { useState } from 'react'
-import { ReceiptText, ShieldCheck, Wrench, UserCog } from 'lucide-react'
 
 type Props = {
-    data: {
-        council_rates: number | undefined
-        insurance: number | undefined
-        maintenance: number | undefined
-        property_manager: number | undefined
-    }
-    updateFields: (fields: Partial<Props['data']>) => void
+    data: Record<string, number | undefined>
+    updateFields: (fields: Partial<Record<string, number>>) => void
     onNext: () => void
     onBack: () => void
 }
@@ -22,7 +16,7 @@ export default function Step4Expenses({ data, updateFields, onNext, onBack }: Pr
     const {
         register,
         handleSubmit,
-        formState: { errors, isValid },
+        formState: { isValid },
     } = useForm({
         defaultValues: data,
         mode: 'onChange',
@@ -30,86 +24,57 @@ export default function Step4Expenses({ data, updateFields, onNext, onBack }: Pr
 
     const handleNext = (values: any) => {
         setLoading(true)
+
+        const parsed = Object.fromEntries(
+            Object.entries(values).map(([k, v]) => [k, v !== '' && v !== undefined ? Number(v) : 0])
+        )
+
         setTimeout(() => {
-            updateFields(values)
+            updateFields(parsed)
             onNext()
         }, 400)
     }
 
+    const allExpenseFields = [
+        { key: 'council_rates', label: 'Council Rates ($/yr)', required: true },
+        { key: 'insurance', label: 'Insurance ($/yr)', required: true },
+        { key: 'maintenance', label: 'Maintenance ($/yr)', required: true },
+        { key: 'property_manager', label: 'Property Manager ($/yr)', required: true },
+        { key: 'strata', label: 'Strata ($/yr)', required: false },
+        { key: 'water', label: 'Water Charges ($/yr)', required: false },
+        { key: 'cleaning', label: 'Cleaning ($/yr)', required: false },
+        { key: 'gardening', label: 'Gardening/Mowing ($/yr)', required: false },
+        { key: 'land_tax', label: 'Land Tax ($/yr)', required: false },
+        { key: 'legal_expenses', label: 'Legal Expenses ($/yr)', required: false },
+        { key: 'pest_control', label: 'Pest Control ($/yr)', required: false },
+        { key: 'bookkeeping', label: 'Bookkeeping ($/yr)', required: false },
+        { key: 'postage', label: 'Postage & Stationery ($/yr)', required: false },
+        { key: 'tax_related_expenses', label: 'Tax Related Expenses ($/yr)', required: false },
+        { key: 'travel', label: 'Travel & Car Expenses ($/yr)', required: false },
+        { key: 'once_off_expenses', label: 'Once-Off Expenses ($)', required: false },
+    ]
+
     return (
-        <form
-            onSubmit={handleSubmit(handleNext)}
-            className="space-y-6 transition-all duration-300"
-        >
+        <form onSubmit={handleSubmit(handleNext)} className="space-y-6 transition-all duration-300">
             <h2 className="text-lg font-semibold text-gray-800">4. Expense Details</h2>
 
-            {/* Council Rates */}
-            <div>
-                <label className="block text-gray-700 font-semibold mb-1 flex items-center gap-2">
-                    <ReceiptText size={18} /> Council Rates ($/year)
-                </label>
-                <input
-                    type="number"
-                    {...register('council_rates', { required: true, min: 0 })}
-                    className={`w-full border rounded-md px-4 py-2 focus:outline-none focus:ring-2 ${errors.council_rates ? 'border-red-500 focus:ring-red-400' : 'border-gray-300 focus:ring-blue-500'
-                        }`}
-                    placeholder="e.g. 1800"
-                />
-                {errors.council_rates && (
-                    <p className="text-red-500 text-sm mt-1">Required</p>
-                )}
-            </div>
-
-            {/* Insurance */}
-            <div>
-                <label className="block text-gray-700 font-semibold mb-1 flex items-center gap-2">
-                    <ShieldCheck size={18} /> Insurance ($/year)
-                </label>
-                <input
-                    type="number"
-                    {...register('insurance', { required: true, min: 0 })}
-                    className={`w-full border rounded-md px-4 py-2 focus:outline-none focus:ring-2 ${errors.insurance ? 'border-red-500 focus:ring-red-400' : 'border-gray-300 focus:ring-blue-500'
-                        }`}
-                    placeholder="e.g. 1200"
-                />
-                {errors.insurance && (
-                    <p className="text-red-500 text-sm mt-1">Required</p>
-                )}
-            </div>
-
-            {/* Maintenance */}
-            <div>
-                <label className="block text-gray-700 font-semibold mb-1 flex items-center gap-2">
-                    <Wrench size={18} /> Maintenance ($/year)
-                </label>
-                <input
-                    type="number"
-                    {...register('maintenance', { required: true, min: 0 })}
-                    className={`w-full border rounded-md px-4 py-2 focus:outline-none focus:ring-2 ${errors.maintenance ? 'border-red-500 focus:ring-red-400' : 'border-gray-300 focus:ring-blue-500'
-                        }`}
-                    placeholder="e.g. 800"
-                />
-                {errors.maintenance && (
-                    <p className="text-red-500 text-sm mt-1">Required</p>
-                )}
-            </div>
-
-            {/* Property Manager Fees */}
-            <div>
-                <label className="block text-gray-700 font-semibold mb-1 flex items-center gap-2">
-                    <UserCog size={18} /> Property Manager ($/year)
-                </label>
-                <input
-                    type="number"
-                    {...register('property_manager', { required: true, min: 0 })}
-                    className={`w-full border rounded-md px-4 py-2 focus:outline-none focus:ring-2 ${errors.property_manager ? 'border-red-500 focus:ring-red-400' : 'border-gray-300 focus:ring-blue-500'
-                        }`}
-                    placeholder="e.g. 1500"
-                />
-                {errors.property_manager && (
-                    <p className="text-red-500 text-sm mt-1">Required</p>
-                )}
-            </div>
+            {allExpenseFields.map(({ key, label, required }) => (
+                <div key={key}>
+                    <label className="block text-gray-700 font-semibold mb-1">
+                        {label} {!required && <span className="text-gray-400">(optional)</span>}
+                    </label>
+                    <input
+                        type="number"
+                        step="any"
+                        {...register(key, { required: required ? true : false, min: 0 })}
+                        className={`w-full border rounded-md px-4 py-2 focus:outline-none focus:ring-2 ${required
+                                ? 'border-gray-300 focus:ring-blue-500'
+                                : 'border-gray-300 focus:ring-blue-300'
+                            }`}
+                        placeholder={required ? 'e.g. 1000' : 'e.g. 0'}
+                    />
+                </div>
+            ))}
 
             {/* Navigation Buttons */}
             <div className="flex justify-between pt-4">
@@ -124,7 +89,9 @@ export default function Step4Expenses({ data, updateFields, onNext, onBack }: Pr
                 <button
                     type="submit"
                     disabled={!isValid || loading}
-                    className={`px-6 py-2 rounded-md text-white font-semibold transition ${!isValid || loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+                    className={`px-6 py-2 rounded-md text-white font-semibold transition ${!isValid || loading
+                            ? 'bg-gray-400 cursor-not-allowed'
+                            : 'bg-blue-600 hover:bg-blue-700'
                         }`}
                 >
                     {loading ? 'Loading...' : 'Next →'}
