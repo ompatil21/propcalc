@@ -119,7 +119,8 @@ export default function TaxCalculatorPage({ prefillData }: { prefillData?: any }
     setIsLoading(true);
 
     try {
-      const payload: { [key: string]: any } = { ...formData, 
+      const payload: { [key: string]: any } = {
+        ...formData,
         wageGrowth: String(Number(formData.wageGrowth)),
         rentalGrowth: String(Number(formData.rentalGrowth)),
         inflation: String(Number(formData.inflation)),
@@ -131,10 +132,23 @@ export default function TaxCalculatorPage({ prefillData }: { prefillData?: any }
         }))
       };
       Object.keys(payload).forEach(key => {
-        if (typeof payload[key] === "string" && payload[key].trim() === "" && key !== "dateOfPurchase" && key !== "dateOfSale" && key !== "state") {
+        if (
+          typeof payload[key] === "string" &&
+          payload[key].trim() === "" &&
+          !["dateOfPurchase", "dateOfSale", "state"].includes(key)
+        ) {
           payload[key] = 0;
         }
+
+        // Convert empty strings to null for optional dates
+        if (
+          (key === "dateOfPurchase" || key === "dateOfSale") &&
+          payload[key].trim?.() === ""
+        ) {
+          payload[key] = null;
+        }
       });
+
       const result = await calculateTax(payload);
       setTaxResults(result);
     } catch (error) {
@@ -159,24 +173,24 @@ export default function TaxCalculatorPage({ prefillData }: { prefillData?: any }
   const chartData =
     validOwnerCount
       ? {
-          labels: taxResults.yearly.map((y: any) => `Year ${y.year}`),
-          datasets: Array.isArray(taxResults.yearly[0]?.owners)
-            ? taxResults.yearly[0].owners.map((owner: any, idx: number) => ({
-                label: owner.name || `Owner ${idx + 1}`,
-                data: taxResults.yearly.map(
-                  (y: any) =>
-                    (y.owners &&
-                      y.owners[idx] &&
-                      typeof y.owners[idx].after_tax_cash_flow === "number"
-                      ? y.owners[idx].after_tax_cash_flow
-                      : 0)
-                ),
-                backgroundColor: ["#2563eb", "#10b981", "#a21caf", "#f59e42"][idx % 4],
-                borderColor: ["#2563eb", "#10b981", "#a21caf", "#f59e42"][idx % 4],
-                type: "bar" as const,
-              }))
-            : [],
-        }
+        labels: taxResults.yearly.map((y: any) => `Year ${y.year}`),
+        datasets: Array.isArray(taxResults.yearly[0]?.owners)
+          ? taxResults.yearly[0].owners.map((owner: any, idx: number) => ({
+            label: owner.name || `Owner ${idx + 1}`,
+            data: taxResults.yearly.map(
+              (y: any) =>
+              (y.owners &&
+                y.owners[idx] &&
+                typeof y.owners[idx].after_tax_cash_flow === "number"
+                ? y.owners[idx].after_tax_cash_flow
+                : 0)
+            ),
+            backgroundColor: ["#2563eb", "#10b981", "#a21caf", "#f59e42"][idx % 4],
+            borderColor: ["#2563eb", "#10b981", "#a21caf", "#f59e42"][idx % 4],
+            type: "bar" as const,
+          }))
+          : [],
+      }
       : undefined;
 
   // Defensive helpers for all chart data
@@ -239,46 +253,54 @@ export default function TaxCalculatorPage({ prefillData }: { prefillData?: any }
         </p>
         <form onSubmit={handleSubmit} className="w-full bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-8 border border-gray-100 dark:border-gray-800 space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <InputField label="State" name="state" type="text" value={formData.state} onChange={handleInputChange} required placeholder="VIC/NSW/QLD/etc" />
-            <InputField label="Date of Purchase" name="dateOfPurchase" type="date" value={formData.dateOfPurchase} onChange={handleInputChange} required placeholder="Select the purchase date" />
-            <InputField label="Date of Sale" name="dateOfSale" type="date" value={formData.dateOfSale} onChange={handleInputChange} placeholder="Leave blank for today" />
+            {/* Required Fields */}
+            <InputField label="State" name="state" type="text" value={formData.state} onChange={handleInputChange} required placeholder="e.g. VIC" />
+            <InputField label="Date of Purchase" name="dateOfPurchase" type="date" value={formData.dateOfPurchase} onChange={handleInputChange} required />
             <InputField label="Holding Years" name="holdingYears" type="number" min={1} max={15} value={formData.holdingYears} onChange={handleInputChange} required placeholder="e.g. 10 (max 15)" />
             <InputField label="Purchase Price ($)" name="purchase_price" type="number" value={formData.purchase_price} onChange={handleInputChange} required placeholder="e.g. 400000" />
             <InputField label="Sale Price ($)" name="sale_price" type="number" value={formData.sale_price} onChange={handleInputChange} required placeholder="e.g. 650000" />
             <InputField label="Rent Per Week ($)" name="rentPerWeek" type="number" value={formData.rentPerWeek} onChange={handleInputChange} required placeholder="e.g. 330" />
             <InputField label="Weeks Rented Per Year" name="weeksRented" type="number" value={formData.weeksRented} onChange={handleInputChange} required placeholder="e.g. 50" />
-            <InputField label="Interest Loan 1 ($/yr)" name="interestLoan1" type="number" value={formData.interestLoan1} onChange={handleInputChange} placeholder="e.g. 13500" />
-            <InputField label="Interest Loan 2 ($/yr)" name="interestLoan2" type="number" value={formData.interestLoan2} onChange={handleInputChange} placeholder="e.g. 0" />
-            <InputField label="Interest Rate" name="interestRate" type="number" value={formData.interestRate} onChange={handleInputChange} placeholder="e.g. 0.037" />
             <InputField label="Property Management (%)" name="propertyManager" type="number" value={formData.propertyManager} onChange={handleInputChange} required placeholder="e.g. 7" />
             <InputField label="Letting Fee (weeks)" name="lettingFeeWeeks" type="number" value={formData.lettingFeeWeeks} onChange={handleInputChange} required placeholder="e.g. 1" />
-            <InputField label="Insurance ($/yr)" name="insurance" type="number" value={formData.insurance} onChange={handleInputChange} placeholder="e.g. 1000" />
-            <InputField label="Maintenance ($/yr)" name="maintenance" type="number" value={formData.maintenance} onChange={handleInputChange} placeholder="e.g. 500" />
-            <InputField label="Strata ($/yr)" name="strata" type="number" value={formData.strata} onChange={handleInputChange} placeholder="e.g. 0" />
-            <InputField label="Water Charges ($/yr)" name="waterCharges" type="number" value={formData.waterCharges} onChange={handleInputChange} placeholder="e.g. 600" />
-            <InputField label="Cleaning ($/yr)" name="cleaning" type="number" value={formData.cleaning} onChange={handleInputChange} placeholder="e.g. 0" />
-            <InputField label="Council Rates ($/yr)" name="councilRates" type="number" value={formData.councilRates} onChange={handleInputChange} placeholder="e.g. 1600" />
-            <InputField label="Gardening/Mowing ($/yr)" name="gardening" type="number" value={formData.gardening} onChange={handleInputChange} placeholder="e.g. 0" />
-            <InputField label="Land Tax ($/yr)" name="landTax" type="number" value={formData.landTax} onChange={handleInputChange} placeholder="e.g. 0" />
-            <InputField label="Legal Expenses ($/yr)" name="legalExpenses" type="number" value={formData.legalExpenses} onChange={handleInputChange} placeholder="e.g. 0" />
-            <InputField label="Pest Control ($/yr)" name="pestControl" type="number" value={formData.pestControl} onChange={handleInputChange} placeholder="e.g. 0" />
-            <InputField label="Bookkeeping ($/yr)" name="bookkeeping" type="number" value={formData.bookkeeping} onChange={handleInputChange} placeholder="e.g. 0" />
-            <InputField label="Postage and Stationery ($/yr)" name="postage" type="number" value={formData.postage} onChange={handleInputChange} placeholder="e.g. 0" />
-            <InputField label="Tax Related Expenses ($/yr)" name="taxRelatedExpenses" type="number" value={formData.taxRelatedExpenses} onChange={handleInputChange} placeholder="e.g. 574.75" />
-            <InputField label="Travel and Car Expenses ($/yr)" name="travel" type="number" value={formData.travel} onChange={handleInputChange} placeholder="e.g. 0" />
-            <InputField label="Once Off Expenses ($)" name="onceOffExpenses" type="number" value={formData.onceOffExpenses} onChange={handleInputChange} placeholder="e.g. 50" />
-            <InputField label="Borrowing Costs ($)" name="borrowingCosts" type="number" value={formData.borrowingCosts} onChange={handleInputChange} placeholder="e.g. 1810" />
-            <InputField label="Depreciation - Buildings ($/yr)" name="depreciationBuildings" type="number" value={formData.depreciationBuildings} onChange={handleInputChange} placeholder="e.g. 3000" />
-            <InputField label="Depreciation - Fittings ($ initial)" name="depreciationFittings" type="number" value={formData.depreciationFittings} onChange={handleInputChange} placeholder="e.g. 5000" />
-            <InputField label="Wage Growth Rate" name="wageGrowth" type="number" value={formData.wageGrowth} onChange={handleInputChange} placeholder="e.g. 0.02" />
-            <InputField label="Rental Growth Rate" name="rentalGrowth" type="number" value={formData.rentalGrowth} onChange={handleInputChange} placeholder="e.g. 0.035" />
-            <InputField label="Inflation Rate" name="inflation" type="number" value={formData.inflation} onChange={handleInputChange} placeholder="e.g. 0.025" />
-            <InputField label="Capital Growth Rate" name="capitalGrowth" type="number" value={formData.capitalGrowth} onChange={handleInputChange} placeholder="e.g. 0.08" />
-            <div className="flex items-center space-x-2">
+
+            {/* Optional Fields */}
+            <InputField label="Date of Sale (optional)" name="dateOfSale" type="date" value={formData.dateOfSale} onChange={handleInputChange} placeholder="Leave blank for today" />
+            <InputField label="Interest Loan 1 ($/yr) (optional)" name="interestLoan1" type="number" value={formData.interestLoan1} onChange={handleInputChange} placeholder="e.g. 13500" />
+            <InputField label="Interest Loan 2 ($/yr) (optional)" name="interestLoan2" type="number" value={formData.interestLoan2} onChange={handleInputChange} placeholder="e.g. 0" />
+            <InputField label="Interest Rate (optional)" name="interestRate" type="number" value={formData.interestRate} onChange={handleInputChange} placeholder="e.g. 0.037" />
+            <InputField label="Insurance ($/yr) (optional)" name="insurance" type="number" value={formData.insurance} onChange={handleInputChange} placeholder="e.g. 1000" />
+            <InputField label="Maintenance ($/yr) (optional)" name="maintenance" type="number" value={formData.maintenance} onChange={handleInputChange} placeholder="e.g. 500" />
+            <InputField label="Strata ($/yr) (optional)" name="strata" type="number" value={formData.strata} onChange={handleInputChange} placeholder="e.g. 0" />
+            <InputField label="Water Charges ($/yr) (optional)" name="waterCharges" type="number" value={formData.waterCharges} onChange={handleInputChange} placeholder="e.g. 600" />
+            <InputField label="Cleaning ($/yr) (optional)" name="cleaning" type="number" value={formData.cleaning} onChange={handleInputChange} placeholder="e.g. 0" />
+            <InputField label="Council Rates ($/yr) (optional)" name="councilRates" type="number" value={formData.councilRates} onChange={handleInputChange} placeholder="e.g. 1600" />
+            <InputField label="Gardening/Mowing ($/yr) (optional)" name="gardening" type="number" value={formData.gardening} onChange={handleInputChange} placeholder="e.g. 0" />
+            <InputField label="Land Tax ($/yr) (optional)" name="landTax" type="number" value={formData.landTax} onChange={handleInputChange} placeholder="e.g. 0" />
+            <InputField label="Legal Expenses ($/yr) (optional)" name="legalExpenses" type="number" value={formData.legalExpenses} onChange={handleInputChange} placeholder="e.g. 0" />
+            <InputField label="Pest Control ($/yr) (optional)" name="pestControl" type="number" value={formData.pestControl} onChange={handleInputChange} placeholder="e.g. 0" />
+            <InputField label="Bookkeeping ($/yr) (optional)" name="bookkeeping" type="number" value={formData.bookkeeping} onChange={handleInputChange} placeholder="e.g. 0" />
+            <InputField label="Postage and Stationery ($/yr) (optional)" name="postage" type="number" value={formData.postage} onChange={handleInputChange} placeholder="e.g. 0" />
+            <InputField label="Tax Related Expenses ($/yr) (optional)" name="taxRelatedExpenses" type="number" value={formData.taxRelatedExpenses} onChange={handleInputChange} placeholder="e.g. 574.75" />
+            <InputField label="Travel and Car Expenses ($/yr) (optional)" name="travel" type="number" value={formData.travel} onChange={handleInputChange} placeholder="e.g. 0" />
+            <InputField label="Once Off Expenses ($) (optional)" name="onceOffExpenses" type="number" value={formData.onceOffExpenses} onChange={handleInputChange} placeholder="e.g. 50" />
+            <InputField label="Borrowing Costs ($) (optional)" name="borrowingCosts" type="number" value={formData.borrowingCosts} onChange={handleInputChange} placeholder="e.g. 1810" />
+            <InputField label="Depreciation - Buildings ($/yr) (optional)" name="depreciationBuildings" type="number" value={formData.depreciationBuildings} onChange={handleInputChange} placeholder="e.g. 3000" />
+            <InputField label="Depreciation - Fittings ($ initial) (optional)" name="depreciationFittings" type="number" value={formData.depreciationFittings} onChange={handleInputChange} placeholder="e.g. 5000" />
+            <InputField label="Wage Growth Rate (optional)" name="wageGrowth" type="number" value={formData.wageGrowth} onChange={handleInputChange} placeholder="e.g. 0.02" />
+            <InputField label="Rental Growth Rate (optional)" name="rentalGrowth" type="number" value={formData.rentalGrowth} onChange={handleInputChange} placeholder="e.g. 0.035" />
+            <InputField label="Inflation Rate (optional)" name="inflation" type="number" value={formData.inflation} onChange={handleInputChange} placeholder="e.g. 0.025" />
+            <InputField label="Capital Growth Rate (optional)" name="capitalGrowth" type="number" value={formData.capitalGrowth} onChange={handleInputChange} placeholder="e.g. 0.08" />
+
+            {/* Checkbox */}
+            <div className="flex items-center space-x-2 mt-2">
               <input id="hasPrivateHealthCover" name="hasPrivateHealthCover" type="checkbox" checked={formData.hasPrivateHealthCover} onChange={handleInputChange} />
-              <label htmlFor="hasPrivateHealthCover" className="select-none">Has Private Health Cover</label>
+              <label htmlFor="hasPrivateHealthCover" className="text-sm text-gray-700 dark:text-gray-300 select-none">
+                Has Private Health Cover <span className="text-gray-400">(optional)</span>
+              </label>
             </div>
           </div>
+
           <h2 className="text-xl font-semibold mt-6 mb-2">Owners</h2>
           <div className="space-y-2">
             {formData.owners.map((owner: Owner, idx: number) => (
@@ -344,11 +366,11 @@ export default function TaxCalculatorPage({ prefillData }: { prefillData?: any }
                         {Array.isArray(taxResults.yearly[0]?.owners) &&
                           taxResults.yearly[0].owners.map((owner: any, idx: number) => (
                             <th key={`medicare-levy-${idx}`}>{owner.name} Medicare Levy</th>
-                        ))}
+                          ))}
                         {Array.isArray(taxResults.yearly[0]?.owners) &&
                           taxResults.yearly[0].owners.map((owner: any, idx: number) => (
                             <th key={`medicare-surcharge-${idx}`}>{owner.name} Medicare Surcharge</th>
-                        ))}
+                          ))}
                       </tr>
                     </thead>
                     <tbody>
@@ -358,7 +380,7 @@ export default function TaxCalculatorPage({ prefillData }: { prefillData?: any }
                           <td className="px-2 py-1 text-right">${year.total_rent?.toLocaleString?.() ?? 0}</td>
                           <td className="px-2 py-1 text-right">${year.total_expenses?.toLocaleString?.() ?? 0}</td>
                           <td className="px-2 py-1 text-right">${year.pre_tax_cash_flow?.toLocaleString?.() ?? 0}</td>
-                          <td className="px-2 py-1 text-right">${year.pre_tax_cash_flow_week?.toLocaleString?.(undefined, {maximumFractionDigits: 2}) ?? 0}</td>
+                          <td className="px-2 py-1 text-right">${year.pre_tax_cash_flow_week?.toLocaleString?.(undefined, { maximumFractionDigits: 2 }) ?? 0}</td>
                           <td className="px-2 py-1 text-right">${year.total_cash_deductions?.toLocaleString?.() ?? 0}</td>
                           <td className="px-2 py-1 text-right">${year.borrowing_costs_annual?.toLocaleString?.() ?? 0}</td>
                           <td className="px-2 py-1 text-right">${year.dep_buildings?.toLocaleString?.() ?? 0}</td>
@@ -400,7 +422,7 @@ export default function TaxCalculatorPage({ prefillData }: { prefillData?: any }
                     <p>Owner Portions:</p>
                     <ul>
                       {Array.isArray(taxResults.state_reference?.owner_portions) && taxResults.state_reference.owner_portions.map((portion: number, idx: number) => (
-                        <li key={idx}>{formData.owners[idx]?.name || `Owner ${idx+1}`}: <b>${portion?.toLocaleString?.() ?? 0}</b></li>
+                        <li key={idx}>{formData.owners[idx]?.name || `Owner ${idx + 1}`}: <b>${portion?.toLocaleString?.() ?? 0}</b></li>
                       ))}
                     </ul>
                   </div>
@@ -467,7 +489,7 @@ export default function TaxCalculatorPage({ prefillData }: { prefillData?: any }
                       "rgba(245,158,66,0.2)"
                     )} options={{ responsive: true, maintainAspectRatio: false }} />
                   </div>
-                  {Array.isArray(taxResults.holdingCostsYears) && taxResults.holdingCostsYears.length > 0 && (
+                  {/* {Array.isArray(taxResults.holdingCostsYears) && taxResults.holdingCostsYears.length > 0 && (
                     <div className="col-span-full">
                       <h3 className="font-bold mb-2">Holding Costs Breakdown (Yearly)</h3>
                       <div className="flex flex-wrap gap-6">
@@ -488,7 +510,54 @@ export default function TaxCalculatorPage({ prefillData }: { prefillData?: any }
                         ))}
                       </div>
                     </div>
+                  )} */}
+                  {Array.isArray(taxResults.holdingCostsYears) && taxResults.holdingCostsYears.length > 0 && (
+                    <div className="col-span-full" style={{ maxWidth: 900, height: 400 }}>
+                      <h3 className="font-bold mb-4">Holding Costs Breakdown (Yearly)</h3>
+                      <Bar
+                        data={{
+                          labels: taxResults.holdingCostsYears.map((hc: any) => `Year ${hc.year}`),
+                          datasets: [
+                            {
+                              label: "You",
+                              data: taxResults.holdingCostsYears.map((hc: any) => hc.data?.[0] ?? 0),
+                              backgroundColor: "#2563eb",
+                            },
+                            {
+                              label: "Tax Office",
+                              data: taxResults.holdingCostsYears.map((hc: any) => hc.data?.[1] ?? 0),
+                              backgroundColor: "#10b981",
+                            },
+                            {
+                              label: "Tenant",
+                              data: taxResults.holdingCostsYears.map((hc: any) => hc.data?.[2] ?? 0),
+                              backgroundColor: "#f59e42",
+                            },
+                          ],
+                        }}
+                        options={{
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          plugins: {
+                            tooltip: {
+                              callbacks: {
+                                label: (ctx) => `$${ctx.parsed.y.toLocaleString()}`,
+                              },
+                            },
+                          },
+                          scales: {
+                            y: {
+                              beginAtZero: true,
+                              ticks: {
+                                callback: (value) => `$${value}`,
+                              },
+                            },
+                          },
+                        }}
+                      />
+                    </div>
                   )}
+
                   <div style={{ maxWidth: 500, height: 320 }}>
                     <h3 className="font-bold mb-2">Property Value Over Time</h3>
                     <Line
