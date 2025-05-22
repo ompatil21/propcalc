@@ -58,9 +58,21 @@ const Register = () => {
             });
 
             const data = res.data;
-            localStorage.setItem('accessToken', data.tokens.access);
-            localStorage.setItem('refreshToken', data.tokens.refresh);
-            localStorage.setItem('user', JSON.stringify(data.user));
+
+            // ✅ Flexible token handling
+            const accessToken = data.tokens?.access || data.token;
+            const refreshToken = data.tokens?.refresh || '';
+
+            localStorage.setItem('accessToken', accessToken);
+            if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+
+            const user = data.user || {
+                name: name,
+                email: email,
+                role: data.role || 'tenant',
+            };
+            localStorage.setItem('user', JSON.stringify(user));
+
             setSuccess('Registered successfully. Redirecting to login...');
             setTimeout(() => router.push('/login'), 2000);
         } catch (err: any) {

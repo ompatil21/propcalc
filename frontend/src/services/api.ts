@@ -9,9 +9,8 @@ function toInteger(value: any) {
 }
 
 export async function createProperty(data: any) {
-  const token = localStorage.getItem("accessToken")
+  const token = localStorage.getItem("accessToken");
 
-  // 🛠️ Convert string fields to correct types
   const transformed = {
     ...data,
     purchase_price: toNumber(data.purchase_price),
@@ -50,25 +49,28 @@ export async function createProperty(data: any) {
       ownership: toNumber(o.ownership),
       income: toNumber(o.income),
     })),
-  }
+  };
 
   const res = await fetch("http://localhost:5000/api/properties", {
     method: "POST",
+    mode: "cors",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(transformed),
-  })
+  });
 
   if (!res.ok) {
-    const error = await res.text()
-    console.error("❌ Backend rejected:", error)
-    throw new Error("Failed to create property")
+    const error = await res.text();
+    console.error("❌ Backend rejected:", error);
+    throw new Error("Failed to create property");
   }
 
-  return await res.json()
+  return await res.json();
 }
+
 
 // Property CRUD
 
@@ -83,15 +85,15 @@ export async function getProperties() {
   return res.json();
 }
 
-// Fetch property by ID
-export async function getPropertyById(id: string) {
-  const res = await fetch(`http://localhost:5000/api/properties/${id}`, {
-    method: 'GET',
-    headers: { 'Content-Type': 'application/json' },
-  });
-  if (!res.ok) throw new Error('Failed to fetch property');
-  return res.json();
-}
+// // Fetch property by ID
+// export async function getPropertyById(id: string) {
+//   const res = await fetch(`http://localhost:5000/api/properties/${id}`, {
+//     method: 'GET',
+//     headers: { 'Content-Type': 'application/json' },
+//   });
+//   if (!res.ok) throw new Error('Failed to fetch property');
+//   return res.json();
+// }
 
 // Update property by ID
 export async function updateProperty(id: string, propertyData: any) {
@@ -272,3 +274,46 @@ export async function getPortfolioSummary(data: any) {
   return res.json();
 }
 
+
+import { Property } from "@/types/property";
+export async function getUserProperties(): Promise<Property[]> {
+  const token = localStorage.getItem("accessToken");
+
+  if (!token) {
+    throw new Error("JWT token not found.");
+  }
+
+  const res = await fetch("http://localhost:5000/api/properties/user", {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const error = await res.text();
+    console.error("❌ Backend rejected:", error);
+    throw new Error(error || "Failed to fetch properties");
+  }
+
+  return res.json();
+}
+
+
+export async function getPropertyById(id: string): Promise<Property> {
+  const token = localStorage.getItem("accessToken");
+
+  const res = await fetch(`http://localhost:5000/api/properties/${id}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const error = await res.text();
+    console.error("❌ Failed to get property:", error);
+    throw new Error(error || "Failed to fetch property");
+  }
+
+  return res.json();
+}
