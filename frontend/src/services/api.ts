@@ -75,15 +75,15 @@ export async function createProperty(data: any) {
 // Property CRUD
 
 
-// Fetch all properties
-export async function getProperties() {
-  const res = await fetch('http://localhost:5000/api/properties', {
-    method: 'GET',
-    headers: { 'Content-Type': 'application/json' },
-  });
-  if (!res.ok) throw new Error('Failed to fetch properties');
-  return res.json();
-}
+// // Fetch all properties
+// export async function getProperties() {
+//   const res = await fetch('http://localhost:5000/api/properties', {
+//     method: 'GET',
+//     headers: { 'Content-Type': 'application/json' },
+//   });
+//   if (!res.ok) throw new Error('Failed to fetch properties');
+//   return res.json();
+// }
 
 // // Fetch property by ID
 // export async function getPropertyById(id: string) {
@@ -276,7 +276,7 @@ export async function getPortfolioSummary(data: any) {
 
 
 import { Property } from "@/types/property";
-export async function getUserProperties(): Promise<Property[]> {
+export async function getUserPropertiesWithToken(): Promise<Property[]> {
   const token = localStorage.getItem("accessToken");
 
   if (!token) {
@@ -315,5 +315,35 @@ export async function getPropertyById(id: string): Promise<Property> {
     throw new Error(error || "Failed to fetch property");
   }
 
+  return res.json();
+}
+
+export async function getProperties(email: string) {
+    try {
+        const response = await fetch(`http://localhost:5000/api/properties?email=${email}`);
+        if (!response.ok) {
+            throw new Error(`Error fetching properties: ${response.status}`);
+        }
+        return await response.json();
+    } catch (error) {
+        console.error('getProperties error:', error);
+        throw error;
+    }
+}
+
+
+
+export async function updateUserProfile(profileData: {
+  email: string;
+  name?: string;
+  address?: string;
+}) {
+  const res = await fetch("http://localhost:5000/api/user/update", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(profileData),
+  });
+
+  if (!res.ok) throw new Error("Failed to update user profile");
   return res.json();
 }

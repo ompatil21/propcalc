@@ -46,6 +46,15 @@ export default function Step5OwnershipIncome({ data, onBack, onSubmit }: Props) 
         if (submitting) return
         setSubmitting(true)
 
+        // ✅ Get user email from localStorage
+        const userEmail = typeof window !== 'undefined' ? localStorage.getItem('userEmail') : null
+
+        if (!userEmail) {
+            alert('User email is missing. Please log in again.')
+            setSubmitting(false)
+            return
+        }
+
         const validOwners = values.owners.filter(
             (owner: any) =>
                 owner.name.trim() !== '' &&
@@ -82,6 +91,7 @@ export default function Step5OwnershipIncome({ data, onBack, onSubmit }: Props) 
 
         const parsed: any = {
             ...values,
+            email: userEmail, // ✅ Required for backend
             owners: validOwners.map((o: any) => ({
                 name: o.name.trim(),
                 ownership: Number(o.ownership),
@@ -110,8 +120,8 @@ export default function Step5OwnershipIncome({ data, onBack, onSubmit }: Props) 
                     </div>
                     <span
                         className={`px-3 py-1 rounded-full font-medium ${totalOwnership === 100
-                                ? 'bg-green-100 text-green-700'
-                                : 'bg-red-100 text-red-700'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-red-100 text-red-700'
                             }`}
                     >
                         Ownership: {totalOwnership || 0}%
@@ -235,8 +245,8 @@ export default function Step5OwnershipIncome({ data, onBack, onSubmit }: Props) 
                     type="submit"
                     disabled={!isValid || submitting || totalOwnership !== 100}
                     className={`px-6 py-2 rounded-md text-white font-semibold transition ${isValid && totalOwnership === 100 && !submitting
-                            ? 'bg-blue-600 hover:bg-blue-700'
-                            : 'bg-gray-400 cursor-not-allowed'
+                        ? 'bg-blue-600 hover:bg-blue-700'
+                        : 'bg-gray-400 cursor-not-allowed'
                         }`}
                 >
                     Submit →

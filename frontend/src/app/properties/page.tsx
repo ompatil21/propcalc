@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { Property } from "@/types/property";
-import { getUserProperties } from "@/services/api";
+import { getProperties } from "@/services/api";
 import PropertyCard from "@/components/ui/PropertyCard";
 
 export default function PropertiesPage() {
@@ -14,7 +14,9 @@ export default function PropertiesPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const data = await getUserProperties();
+        const email = localStorage.getItem('userEmail');
+        if (!email) throw new Error('User email not found');
+        const data = await getProperties(email);
         setProperties(data);
       } catch (err: any) {
         setError(err.message);
