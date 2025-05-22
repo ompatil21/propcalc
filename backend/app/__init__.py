@@ -29,7 +29,13 @@ def create_app():
     jwt.init_app(app)
 
     #  Allow frontend requests
-    CORS(app, supports_credentials=True, origins=["http://localhost:3000"])
+    CORS(
+        app,
+        supports_credentials=True,
+        origins=["http://localhost:3000"],
+        allow_headers=["Content-Type", "Authorization"],
+        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    )
 
     # Register routes
     from app.routes.admin import bp as admin_bp
@@ -39,7 +45,7 @@ def create_app():
 
     app.register_blueprint(admin_bp)
     app.register_blueprint(auth_bp)
-    app.register_blueprint(simulation_bp, url_prefix='/api/simulation')
-    app.register_blueprint(taxcalc_bp, url_prefix='/api/tax-calc')
+    app.register_blueprint(simulation_bp, url_prefix="/api/simulation")
+    app.register_blueprint(taxcalc_bp, url_prefix="/api/tax-calc")
 
     return app
