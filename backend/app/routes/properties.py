@@ -86,7 +86,8 @@ schema = {
 @jwt_required()
 def create_property():
     if request.method == "OPTIONS":
-        return "", 204
+        return "", 200
+    ...
 
     user_id = get_jwt_identity()
 
@@ -180,4 +181,38 @@ def create_property():
 
     except Exception as e:
         print("❌ Error inserting property:", e)
+        return jsonify({"error": str(e)}), 500
+
+
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from app.db import db
+from app.models.property import property_serializer
+
+
+# ✅ New GET route for current user
+@bp.route("/user", methods=["GET"])
+@jwt_required()
+def get_user_properties():
+    user = get_jwt_identity()
+
+    if not user or not user.get("email"):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    user_email = user["email"]
+    properties = list(db.properties.find({"user_id.email": user_email}))
+
+    serialized = [property_serializer(p) for p in properties]
+    return jsonify(serialized), 200
+
+
+@bp.route("/<property_id>", methods=["GET"])
+@jwt_required()
+def get_property_by_id(property_id):
+    try:
+        property = db.properties.find_one({"_id": ObjectId(property_id)})
+        if not property:
+            return jsonify({"error": "Property not found"}), 404
+        return jsonify(property_serializer(property)), 200
+    except Exception as e:
+        print("❌ Error fetching property:", e)
         return jsonify({"error": str(e)}), 500
