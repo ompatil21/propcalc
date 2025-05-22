@@ -31,22 +31,30 @@ const Login = () => {
             const response = await axios.post('http://localhost:5000/api/auth/login', formData);
             const data = response.data;
 
-            localStorage.setItem('accessToken', data.tokens.access);
-            localStorage.setItem('refreshToken', data.tokens.refresh);
-            localStorage.setItem('user', JSON.stringify({
-                _id: data.user._id,
-                name: data.user.name,
-                email: data.user.email,
-                role: data.user.role,
-            }));
+            const accessToken = data.tokens?.access || data.token;
+            const refreshToken = data.tokens?.refresh || '';
 
-            console.log("✅ User stored:", JSON.parse(localStorage.getItem('user')!));
+            localStorage.setItem('accessToken', accessToken);
+            if (refreshToken) {
+                localStorage.setItem('refreshToken', refreshToken);
+            }
 
-            if (data.user.role === 'property_manager') {
+            const user = data.user || {
+                _id: data.user?._id || '', // If available
+                name: data.user?.name || '',
+                email: formData.email,
+                role: data.role || 'admin',
+            };
+
+            localStorage.setItem('user', JSON.stringify(user));
+            console.log("✅ User stored:", user);
+
+            if (user.role === 'property_manager') {
                 router.push('/property-manager');
             } else {
                 router.push('/dashboard');
             }
+
         } catch (err: any) {
             console.error('Login error:', err);
             setError(err?.response?.data?.message || 'Login failed. Please try again.');
