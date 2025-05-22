@@ -8,6 +8,8 @@ import {
   BarElement, CategoryScale, Chart as ChartJS, ChartData, ChartOptions, Legend,
   LinearScale, LineElement, PointElement, Title, Tooltip, ArcElement
 } from "chart.js";
+import { useSearchParams } from 'next/navigation';
+import { getPropertyById } from '@/services/api';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend);
 
@@ -65,10 +67,75 @@ export default function TaxCalculatorPage({ prefillData }: { prefillData?: any }
   const [isLoading, setIsLoading] = useState(false);
   const [taxResults, setTaxResults] = useState<any>(null);
 
-  // Clear taxResults if number of owners changes
+  // // Clear taxResults if number of owners changes
+  // useEffect(() => {
+  //   setTaxResults(null);
+  // }, [formData.owners.length]);
+
+  const searchParams = useSearchParams();
+  const prefillId = searchParams.get("prefill");
+  function convertToFormData(p: any) {
+    return {
+      state: p.state || "VIC",
+      dateOfPurchase: p.date_of_purchase || "",
+      dateOfSale: p.date_of_sale || "",
+      holdingYears: p.holding_years?.toString() || "10",
+      rentPerWeek: p.rentPerWeek?.toString() || "",
+      weeksRented: p.weeksRented?.toString() || "50",
+      interestLoan1: p.interestLoan1?.toString() || "",
+      interestLoan2: p.interestLoan2?.toString() || "",
+      interestRate: p.interest_rate?.toString() || "0.037",
+      propertyManager: p.property_manager?.toString() || "7",
+      lettingFeeWeeks: p.lettingFeeWeeks?.toString() || "1",
+      insurance: p.insurance?.toString() || "",
+      maintenance: p.maintenance?.toString() || "",
+      strata: p.strata?.toString() || "",
+      waterCharges: p.water?.toString() || "",
+      cleaning: p.cleaning?.toString() || "",
+      councilRates: p.council_rates?.toString() || "",
+      gardening: p.gardening?.toString() || "",
+      landTax: p.land_tax?.toString() || "",
+      legalExpenses: p.legal_expenses?.toString() || "",
+      pestControl: p.pest_control?.toString() || "",
+      bookkeeping: p.bookkeeping?.toString() || "",
+      postage: p.postage?.toString() || "",
+      taxRelatedExpenses: p.tax_related_expenses?.toString() || "",
+      travel: p.travel?.toString() || "",
+      onceOffExpenses: p.once_off_expenses?.toString() || "",
+      borrowingCosts: p.borrowing_costs?.toString() || "",
+      depreciationBuildings: p.buildings_value?.toString() || "",
+      depreciationFittings: p.fittings_value?.toString() || "",
+      wageGrowth: p.wage_growth?.toString() || "0.02",
+      rentalGrowth: p.rental_growth?.toString() || "0.035",
+      inflation: p.inflation?.toString() || "0.025",
+      capitalGrowth: p.capital_growth_rate?.toString() || "0.08",
+      hasPrivateHealthCover: p.medicare_surcharge || false,
+      purchase_price: p.purchase_price?.toString() || "",
+      sale_price: p.sale_price?.toString() || "",
+      owners: Array.isArray(p.owners)
+        ? p.owners.map((o: any) => ({
+          name: o.name || "",
+          ownership: o.ownership?.toString() || "0",
+          income: o.income?.toString() || "0",
+        }))
+        : [{ name: "Owner 1", ownership: "50", income: "" }],
+    };
+  }
+
   useEffect(() => {
-    setTaxResults(null);
-  }, [formData.owners.length]);
+    const fetchPrefill = async () => {
+      if (prefillId) {
+        const token = localStorage.getItem("accessToken");
+        const res = await fetch(`http://localhost:5000/api/properties/${prefillId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        console.log("🚀 Prefill Data:", data);
+        setFormData(convertToFormData(data)); // You must define this
+      }
+    };
+    fetchPrefill();
+  }, [prefillId]);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
